@@ -27,7 +27,7 @@
   */
   :root {
     --u: min(1vh, 0.5625vw);
-    --bg: #1d1e23;
+    --bg: #0e0e0f;
     --yellow: #ffe500;
     --orange: #ff6a14;
     --red: #e3262e;
@@ -63,7 +63,7 @@
     border-bottom: calc(var(--u) * 0.25) solid var(--line);
   }
   #title {
-    font-size: calc(var(--u) * 8.4);
+    font-size: calc(var(--u) * 7);
     line-height: 1.2;
     font-weight: 700;
     color: #fff;
@@ -91,7 +91,7 @@
     display: grid;
     grid-template-columns: calc(var(--u) * 19.9) minmax(0, 1fr) calc(var(--u) * 16) calc(var(--u) * 29);
     align-items: start;
-    padding: calc(var(--u) * 2) 0 calc(var(--u) * 2) 0;
+    padding: calc(var(--u) * 1) 0 calc(var(--u) * 1) 0;
   }
   .row.fade-in { animation: rowIn var(--fade-in) cubic-bezier(0.22, 1, 0.36, 1) both; }
   @keyframes rowIn {
@@ -112,20 +112,20 @@
     color: var(--yellow);
     margin-top: calc(var(--u) * 0.4);
   }
-  .dest-name + .sub { margin-top: calc(var(--u) * 1 ); }
+  .dest-name + .sub { margin-top: calc(var(--u) * 0 ); }
 .plat {
   font-weight: 700; color: var(--yellow);
   white-space: nowrap;
   justify-self: end;
-  margin-right: calc(var(--u) * 3);
+  margin-right: calc(var(--u) * 3.5);
 }
 
   /* The strip belongs to the row (it fades/slides down with the service).
      The pill body slides in later and emerges from behind the strip. */
   .pill-wrap {
     position: relative;
-    height: calc(var(--u) * 6.7);
-    margin-top: calc(var(--u) * 0.05);
+    height: calc(var(--u) * 6);
+    margin-top: calc(var(--u) * 0.45);
   }
   .pill-strip {
     position: absolute; top: 0; right: 0; bottom: 0;
@@ -137,13 +137,13 @@
     height: 100%;
     margin-right: calc(var(--u) * 1.1);
     display: flex; align-items: center; justify-content: center;
-    font-size: calc(var(--u) * 4.5);
+    font-size: calc(var(--u) * 4);
     font-weight: 500;
     white-space: nowrap;
   }
-  .pill-wrap.ontime .pill          { background: #f2f2f2; color: #6c6c70; }
+  .pill-wrap.ontime .pill          { background: #f2f2f2; color: #000000; }
   .pill-wrap.ontime .pill-strip    { background: var(--yellow); }
-  .pill-wrap.exp .pill             { background: var(--orange); color: #2a1606; }
+  .pill-wrap.exp .pill             { background: var(--orange); color: #2a1606;  font-weight: 700 }
   .pill-wrap.exp .pill-strip       { background: var(--orange-dark); }
   .pill-wrap.cancelled .pill       { background: var(--red); color: #fff; font-weight: 700; }
   .pill-wrap.cancelled .pill-strip { background: var(--red-dark); }
@@ -230,10 +230,10 @@ const CONFIG = {
   maxServices: 15,          // roughly the next N services are shown across the pages
   fadeOutMs: 300,           // whole page fades out together
   fadeInMs: 900,            // each row slide-down + fade-in duration
-  staggerMs: 130,           // delay between each row appearing, top to bottom
+  staggerMs: 150,           // delay between each row appearing, top to bottom
   faultAfterFailures: 3,    // consecutive failed fetches before the fault screen shows
   platformFlashMs: 5 * 60 * 1000,
-  pillDelayMs: -400,    // pause after the last row has faded in before the pills slide
+  pillDelayMs: -500,    // pause after the last row has faded in before the pills slide
   pillSlideMs: 1000,     // pill slide-in duration (ease out)
   pillStaggerMs: 0          // set above 0 to make the pills slide in one after another
 };
