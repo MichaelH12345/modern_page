@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Departures</title>
+<style>
+  @font-face {
+    font-family: 'Circular';
+    src: url('https://raw.githubusercontent.com/Holo-Host/holo-communities/master/public/assets/fonts/Circular-Font-Family/lineto-circular-book.ttf') format('truetype');
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: 'Circular';
+    src: url('https://raw.githubusercontent.com/Holo-Host/holo-communities/master/public/assets/fonts/Circular-Font-Family/lineto-circular-medium.ttf') format('truetype');
+    font-weight: 500; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: 'Circular';
+    src: url('https://raw.githubusercontent.com/Holo-Host/holo-communities/master/public/assets/fonts/Circular-Font-Family/lineto-circular-bold.ttf') format('truetype');
+    font-weight: 700; font-style: normal; font-display: swap;
+  }
+
+  /*
+    Everything is sized in --u, where 100 u = the height of a 16:9 screen.
+    On a 1920x1080 display 1 u = 10.8 px. The board scales to any screen.
+  */
+  :root {
+    --u: min(1vh, 0.5625vw);
+    --bg: #1d1e23;
+    --yellow: #ffe500;
+    --orange: #ff6a14;
+    --red: #e3262e;
+    --orange-dark: #d4500c;   /* strip on delayed / expected-time pills */
+    --red-dark: #b4161e;      /* strip on cancelled pills */
+    --white: #f5f5f5;
+    --dot-off: #8e8f95;
+    --line: #5c5d64;
+    --safe: 25px;            /* safe zone around the whole page */
+    --pill-slide: 700ms;
+    --fade-out: 300ms;
+    --fade-in: 450ms;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; overflow: hidden; }
+  body { font-family: 'Circular', 'Helvetica Neue', Arial, sans-serif; color: var(--white); }
+
+  #board {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    padding: 0 var(--safe);   /* sides; top and bottom are handled by the header and footer heights */
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ───────── Header ───────── */
+  header {
+    flex: none;
+    height: calc(var(--u) * 12);
+    padding: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: calc(var(--u) * 0.25) solid var(--line);
+  }
+  #title {
+    font-size: calc(var(--u) * 8.4);
+    line-height: 1.2;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding-right: calc(var(--u) * 3);
+  }
+  #clock {
+    font-size: calc(var(--u) * 6.3);
+    font-weight: 700;
+    color: var(--yellow);
+    display: flex; align-items: center;
+    flex: none;
+    line-height: 1;
+  }
+  #clock .d { display: inline-block; width: 0.62em; text-align: center; }
+  #clock .c { display: inline-block; width: 0.3em; text-align: center; }
+
+  /* ───────── Rows ───────── */
+  #rows { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+  #rows.out { opacity: 0; transition: opacity var(--fade-out) ease-in; }
+
+  .row {
+    display: grid;
+    grid-template-columns: calc(var(--u) * 19.9) minmax(0, 1fr) calc(var(--u) * 16) calc(var(--u) * 29);
+    align-items: start;
+    padding: calc(var(--u) * 2) 0 calc(var(--u) * 2) 0;
+  }
+  .row.fade-in { animation: rowIn var(--fade-in) cubic-bezier(0.22, 1, 0.36, 1) both; }
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateY(calc(var(--u) * -4.6)); }   /* 4.6 u = 50px on a 1080p screen */
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .time, .dest-name, .plat {
+    font-size: calc(var(--u) * 5.8);
+    line-height: calc(var(--u) * 6.8);
+  }
+  .time { font-weight: 700; color: var(--yellow); font-variant-numeric: tabular-nums; }
+  .dest-name { font-weight: 700; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub {
+    font-size: calc(var(--u) * 4.4);
+    line-height: calc(var(--u) * 5.3);
+    font-weight: 400;
+    color: var(--yellow);
+    margin-top: calc(var(--u) * 0.4);
+  }
+  .dest-name + .sub { margin-top: calc(var(--u) * 1 ); }
+.plat {
+  font-weight: 700; color: var(--yellow);
+  white-space: nowrap;
+  justify-self: end;
+  margin-right: calc(var(--u) * 3);
+}
+
+  /* The strip belongs to the row (it fades/slides down with the service).
+     The pill body slides in later and emerges from behind the strip. */
+  .pill-wrap {
+    position: relative;
+    height: calc(var(--u) * 6.7);
+    margin-top: calc(var(--u) * 0.05);
+  }
+  .pill-strip {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: calc(var(--u) * 1.1);
+    z-index: 2;
+  }
+  .pill {
+    position: relative; z-index: 1;
+    height: 100%;
+    margin-right: calc(var(--u) * 1.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--u) * 4.5);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .pill-wrap.ontime .pill          { background: #f2f2f2; color: #6c6c70; }
+  .pill-wrap.ontime .pill-strip    { background: var(--yellow); }
+  .pill-wrap.exp .pill             { background: var(--orange); color: #2a1606; }
+  .pill-wrap.exp .pill-strip       { background: var(--orange-dark); }
+  .pill-wrap.cancelled .pill       { background: var(--red); color: #fff; font-weight: 700; }
+  .pill-wrap.cancelled .pill-strip { background: var(--red-dark); }
+
+  /* Status pills wait off-screen, then slide in once every row has faded in */
+#rows .pill {
+  transform: translateX(calc(var(--u) * 29));
+  transition: transform var(--pill-slide) cubic-bezier(0.8, 0, 0.2, 1)
+}
+  #rows.pills-in .pill { transform: translateX(0); }
+
+  .blink { animation: blink 1.5s infinite ease-in-out; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.1; } }
+  @media (prefers-reduced-motion: reduce) { .blink { animation: none; } }
+
+  /* ───────── Footer ───────── */
+  footer {
+    flex: none;
+    height: calc(var(--u) * 9);
+    border-top: calc(var(--u) * 0.25) solid var(--line);
+    padding: 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #page-label { font-size: calc(var(--u) * 3.5); font-weight: 700; color: var(--yellow); }
+  #dots { display: flex; gap: calc(var(--u) * 2.6); }
+  .dot {
+    width: calc(var(--u) * 3.7); height: calc(var(--u) * 3.7);
+    border-radius: 50%; background: var(--dot-off);
+  }
+  .dot.on { background: var(--yellow); }
+  footer.single > * { visibility: hidden; }
+
+  /* ───────── Fault screen ───────── */
+  #fault {
+    display: none;
+    position: absolute; left: var(--safe); right: var(--safe);
+    top: calc(var(--u) * 12); bottom: 0;
+    padding: calc(var(--u) * 10) calc(var(--u) * 8) 0;
+    text-align: center;
+    font-size: calc(var(--u) * 4.6);
+    line-height: 1.4;
+    color: var(--white);
+  }
+  #board.fault #fault { display: block; }
+  #board.fault #rows, #board.fault footer { visibility: hidden; }
+
+  /* Off-screen measuring area used for pagination */
+  #measure { position: absolute; left: var(--safe); right: var(--safe); top: 0; visibility: hidden; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="board">
+  <header>
+    <div id="title" title="Click to change station">Departures</div>
+    <div id="clock" aria-label="Current time"></div>
+  </header>
+
+  <main id="rows"></main>
+
+  <footer class="single">
+    <div id="page-label">Page 1 of 1</div>
+    <div id="dots"></div>
+  </footer>
+
+  <div id="fault">
+    We're working to fix a fault with this board.<br><br>
+    For live train information speak to station staff, use station help points<br>
+    or check the National Rail app.
+  </div>
+
+  <div id="measure"></div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════
+   Settings – tweak the transition feel here
+   ════════════════════════════════════════════════ */
+const CONFIG = {
+  accessToken: 'e48245fd-c8d4-46b5-87ef-60e71665e6b6',
+  defaultStation: 'CAR',
+  pageSeconds: 10,          // page changes when the clock seconds are a multiple of this
+  fetchSecondMod: 5,        // data is fetched when (seconds % 10) === this
+  maxPages: 3,
+  maxServices: 15,          // roughly the next N services are shown across the pages
+  fadeOutMs: 300,           // whole page fades out together
+  fadeInMs: 900,            // each row slide-down + fade-in duration
+  staggerMs: 130,           // delay between each row appearing, top to bottom
+  faultAfterFailures: 3,    // consecutive failed fetches before the fault screen shows
+  platformFlashMs: 5 * 60 * 1000,
+  pillDelayMs: -400,    // pause after the last row has faded in before the pills slide
+  pillSlideMs: 1000,     // pill slide-in duration (ease out)
+  pillStaggerMs: 0          // set above 0 to make the pills slide in one after another
+};
+
+document.documentElement.style.setProperty('--fade-out', CONFIG.fadeOutMs + 'ms');
+document.documentElement.style.setProperty('--fade-in', CONFIG.fadeInMs + 'ms');
+document.documentElement.style.setProperty('--pill-slide', CONFIG.pillSlideMs + 'ms');
+
+/* ════════════════════════════════════════════════
+   Helpers and state
+   ════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const boardEl = $('board'), rowsEl = $('rows'), measureEl = $('measure');
+const labelEl = $('page-label'), dotsEl = $('dots'), footerEl = document.querySelector('footer');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+// "<Station> Departures", shrunk to fit on one line if the name is long
+const titleEl = $('title');
+function fitTitle() {
+  titleEl.style.fontSize = '';
+  let fs = parseFloat(getComputedStyle(titleEl).fontSize);
+  while (titleEl.scrollWidth > titleEl.clientWidth && fs > 24) {
+    fs -= 2;
+    titleEl.style.fontSize = fs + 'px';
+  }
+}
+function setTitle(name) {
+  titleEl.textContent = name ? `${name} Departures` : 'Departures';
+  fitTitle();
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
+
+let stationCode = safeGet('stationCode') || CONFIG.defaultStation;
+
+const knownMap = new Map();     // id -> latest known service object
+let latestIds = [];             // ids in the order of the latest fetch
+let pages = [];                 // array of arrays of ids
+let currentPage = 0;
+let displayedSig = null;        // signature of the layout currently paginated
+let transitioning = false;
+let faultMode = false;
+let failures = 0;
+let fetchGen = 0;
+const onTimeStreaks = new Map();
+const platformFlashUntil = new Map();
+
+function getServiceId(s) {
+  return `${s.std}-${s.destination?.[0]?.locationName || ''}-${s.isBus ? 'bus' : 'train'}`;
+}
+function isTime(v) { return /^\d{2}:\d{2}$/.test(v || ''); }
+function is21SecondsPastSTD(std) {
+  if (!isTime(std)) return false;
+  const [h, m] = std.split(':').map(Number);
+  const t = new Date(); t.setHours(h, m, 0, 0);
+  return Date.now() - t >= 21000;
+}
+
+/* ════════════════════════════════════════════════
+   Clock (fixed-width digits so it never jitters)
+   ════════════════════════════════════════════════ */
+const clockEl = $('clock');
+const clockSpans = '00:00:00'.split('').map(ch => {
+  const s = el('span', ch === ':' ? 'c' : 'd', ch);
+  clockEl.append(s);
+  return s;
+});
+function tickClock() {
+  const t = new Date();
+  const str = [t.getHours(), t.getMinutes(), t.getSeconds()]
+    .map(n => String(n).padStart(2, '0')).join(':');
+  for (let i = 0; i < str.length; i++) {
+    if (clockSpans[i].textContent !== str[i]) clockSpans[i].textContent = str[i];
+  }
+}
+setInterval(tickClock, 250);
+tickClock();
+
+/* ════════════════════════════════════════════════
+   Rows
+   ════════════════════════════════════════════════ */
+function secondaryLines(s) {
+  const lines = [];
+  const op = s.operator || '';
+  if (s.isBus) lines.push('Rail replacement bus');
+  const via = s.destination?.[0]?.via;
+  if (via) lines.push(via);
+  if (s.length && s.length !== 0) lines.push(`This train has ${s.length} coaches.`);
+  if (op === 'Avanti West Coast' && !s.isBus) lines.push('Avanti West Coast Pendolino');
+  if (op === 'Heathrow Express') lines.push('Heathrow Express');
+  if (op === 'London North Eastern Railway') lines.push('Reserve seats up to 5 minutes before departure at LNER.co.uk');
+  if (s.cancelReason) {
+    lines.push(s.cancelReason.replace('This service has been cancelled because of', 'Service cancelled due to') + '.');
+    lines.push('Compensation may apply.');
+  } else if (s.delayReason) {
+    lines.push(s.delayReason.replace('This service has been delayed by', 'Service delayed due to') + '.');
+  }
+  return lines;
+}
+
+function buildRow(s) {
+  const row = el('div', 'row');
+  row.dataset.id = getServiceId(s);
+
+  const dest = el('div', 'dest');
+  dest.append(el('div', 'dest-name', s.destination?.[0]?.locationName || ''));
+  secondaryLines(s).forEach(t => dest.append(el('div', 'sub', t)));
+
+  const wrap = el('div', 'pill-wrap');
+  wrap.append(el('div', 'pill'), el('div', 'pill-strip'));
+
+  row.append(el('div', 'time', s.std || ''), dest, el('div', 'plat'), wrap);
+  updateDynamic(row, s);
+  return row;
+}
+
+// Updates only the parts that change without altering row height
+function updateDynamic(row, s) {
+  if (!s) return;
+  const plat = row.querySelector('.plat');
+  const wrap = row.querySelector('.pill-wrap');
+  const pill = wrap.querySelector('.pill');
+  const id = row.dataset.id;
+
+  plat.textContent = s.isBus ? 'Bus' : (s.platform ? `Plat ${s.platform}` : '');
+  plat.classList.toggle('blink', (platformFlashUntil.get(id) || 0) > Date.now());
+
+  const etd = s.etd || 'On time';
+  let cls = 'ontime', text = etd;
+  if (etd === 'Cancelled') cls = 'cancelled';
+  else if (isTime(etd)) { cls = 'exp'; text = `Exp ${etd}`; }
+  else if (etd !== 'On time' && etd !== 'Arrived') cls = 'exp';   // e.g. "Delayed"
+  wrap.className = 'pill-wrap ' + cls;
+  pill.textContent = text;
+}
+
+/* ════════════════════════════════════════════════
+   Pagination
+   ════════════════════════════════════════════════ */
+function layoutSignature() {
+  const ids = latestIds.filter(id => knownMap.has(id));
+  return Math.round(rowsEl.clientHeight) + '#' +
+    ids.map(id => id + '|' + secondaryLines(knownMap.get(id)).join('/')).join(';');
+}
+
+function paginate(ids) {
+  measureEl.replaceChildren();
+  const avail = rowsEl.clientHeight - 1;
+  const result = [];
+  let page = [], used = 0;
+
+  for (const id of ids) {
+    const row = buildRow(knownMap.get(id));
+    measureEl.append(row);
+    const h = row.getBoundingClientRect().height;
+    if (page.length && used + h > avail) { result.push(page); page = []; used = 0; }
+    page.push(id);
+    used += h;
+  }
+  if (page.length) result.push(page);
+  measureEl.replaceChildren();
+  if (result.length > CONFIG.maxPages) result.length = CONFIG.maxPages;
+  return result;
+}
+
+function rebuild() {
+  const latestSet = new Set(latestIds);
+  for (const k of [...knownMap.keys()]) if (!latestSet.has(k)) knownMap.delete(k);
+  const ids = latestIds.filter(id => knownMap.has(id));
+  pages = paginate(ids);
+  displayedSig = layoutSignature();
+}
+
+function updatePager(idx) {
+  const n = pages.length;
+  footerEl.classList.toggle('single', n <= 1);
+  labelEl.textContent = `Page ${idx + 1} of ${Math.max(n, 1)}`;
+  if (dotsEl.children.length !== n) {
+    dotsEl.replaceChildren(...Array.from({ length: n }, () => el('span', 'dot')));
+  }
+  [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i === idx));
+}
+
+let pillTimer;
+function renderPage(idx) {
+  clearTimeout(pillTimer);
+  rowsEl.classList.remove('pills-in');
+  rowsEl.replaceChildren();
+  const ids = pages[idx] || [];
+  ids.forEach((id, i) => {
+    const row = buildRow(knownMap.get(id));
+    row.style.animationDelay = (i * CONFIG.staggerMs) + 'ms';
+    row.querySelector('.pill').style.transitionDelay = (i * CONFIG.pillStaggerMs) + 'ms';
+    row.classList.add('fade-in');
+    rowsEl.append(row);
+  });
+  updatePager(idx);
+  // Once the last service has faded in, slide all the status pills in
+  const wait = Math.max(ids.length - 1, 0) * CONFIG.staggerMs + CONFIG.fadeInMs + CONFIG.pillDelayMs;
+  pillTimer = setTimeout(() => rowsEl.classList.add('pills-in'), wait);
+}
+
+/* Page transition: the whole page fades out together, then the new
+   page's services fade in one after another from the top. */
+async function swapTo(idx) {
+  if (transitioning) return;
+  transitioning = true;
+  if (rowsEl.children.length) {
+    rowsEl.classList.add('out');
+    await sleep(CONFIG.fadeOutMs);
+  }
+  // Index locking: layout only changes when returning to page 1
+  if (idx === 0 && layoutSignature() !== displayedSig) rebuild();
+  currentPage = Math.min(idx, Math.max(pages.length - 1, 0));
+  renderPage(currentPage);
+  rowsEl.classList.remove('out');
+  transitioning = false;
+}
+
+let lastPageTick = -1;
+setInterval(() => {
+  const s = new Date().getSeconds();
+  if (s % CONFIG.pageSeconds === 0 && s !== lastPageTick) {
+    lastPageTick = s;
+    if (!faultMode && !transitioning && pages.length > 1) {
+      swapTo((currentPage + 1) % pages.length);
+    }
+  }
+}, 250);
+
+/* ════════════════════════════════════════════════
+   Applying new data
+   ════════════════════════════════════════════════ */
+function inPlaceUpdate() {
+  rowsEl.querySelectorAll('.row').forEach(r => updateDynamic(r, knownMap.get(r.dataset.id)));
+}
+
+function reconcile() {
+  if (faultMode) return;
+  if (layoutSignature() !== displayedSig && currentPage === 0 && !transitioning) {
+    swapTo(0);          // re-paginates after the fade out
+    return;
+  }
+  inPlaceUpdate();
+}
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { fitTitle(); reconcile(); }, 300);
+});
+
+/* ════════════════════════════════════════════════
+   Fault screen
+   ════════════════════════════════════════════════ */
+function setFault(on) {
+  if (on === faultMode) return;
+  faultMode = on;
+  boardEl.classList.toggle('fault', on);
+  if (on) {
+    rowsEl.replaceChildren();
+    pages = []; currentPage = 0; displayedSig = null;
+    updatePager(0);
+  }
+}
+
+/* ════════════════════════════════════════════════
+   Fetching
+   ════════════════════════════════════════════════ */
+async function fetchDepartures() {
+  const gen = fetchGen;
+  try {
+    const res = await fetch(`https://huxley2.azurewebsites.net/departures/${stationCode}/50?accessToken=${CONFIG.accessToken}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (gen !== fetchGen) return;   // station changed while waiting
+
+    document.title = `${data.locationName || stationCode} Departures`;
+    setTitle(data.locationName || stationCode);
+
+    const all = [];
+    (data.trainServices || []).forEach(s => { s.isBus = false; all.push(s); });
+    (data.busServices || []).forEach(s => { s.isBus = true; all.push(s); });
+
+    const seen = new Set();
+    const fresh = all.filter(s => {
+      const id = getServiceId(s);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    const shown = fresh.slice(0, CONFIG.maxServices);
+    shown.forEach(s => {
+      const id = getServiceId(s);
+
+      // "Arrived" after a long run of "On time" past the departure time
+      if ((s.etd || 'On time') === 'On time') {
+        const count = (onTimeStreaks.get(id) || 0) + 1;
+        onTimeStreaks.set(id, count);
+        if (count >= 120 && is21SecondsPastSTD(s.std)) s.etd = 'Arrived';
+      } else {
+        onTimeStreaks.delete(id);
+      }
+
+      // Flash the platform when it changes or is first announced
+      const prev = knownMap.get(id);
+      if (prev && s.platform && prev.platform !== s.platform) {
+        platformFlashUntil.set(id, Date.now() + CONFIG.platformFlashMs);
+      }
+      knownMap.set(id, s);
+    });
+    latestIds = shown.map(getServiceId);
+
+    failures = 0;
+    if (faultMode) setFault(false);
+    reconcile();
+  } catch (err) {
+    console.error(err);
+    if (gen !== fetchGen) return;
+    failures++;
+    if (failures >= CONFIG.faultAfterFailures) setFault(true);
+  }
+}
+
+fetchDepartures();
+let lastFetchTick = -1;
+setInterval(() => {
+  const s = new Date().getSeconds();
+  if (s % 10 === CONFIG.fetchSecondMod && s !== lastFetchTick) {
+    lastFetchTick = s;
+    fetchDepartures();
+  }
+}, 250);
+
+/* ════════════════════════════════════════════════
+   Change station (click the title)
+   ════════════════════════════════════════════════ */
+$('title').addEventListener('click', () => {
+  const code = prompt('Enter a station code (e.g. EUS, LST, GTW):', stationCode);
+  if (!code) return;
+  stationCode = code.trim().toUpperCase();
+  safeSet('stationCode', stationCode);
+
+  fetchGen++;
+  knownMap.clear(); latestIds = []; pages = [];
+  onTimeStreaks.clear(); platformFlashUntil.clear();
+  currentPage = 0; displayedSig = null; failures = 0;
+  transitioning = false;
+  rowsEl.classList.remove('out');
+  rowsEl.replaceChildren();
+  setFault(false);
+  updatePager(0);
+  setTitle('');
+  fetchDepartures();
+});
+</script>
+</body>
+</html>
