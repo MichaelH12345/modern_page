@@ -298,11 +298,12 @@ function el(tag, cls, text) {
 function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
-// Toggle state for forcing slide animation on every fetch
-let forceSlideToggle = false;
+// Toggle state for forcing slide animation on every fetch (now ON by default)
+let forceSlideToggle = true;
+labelEl.style.color = 'var(--yellow)';
 labelEl.addEventListener('click', () => {
   forceSlideToggle = !forceSlideToggle;
-  labelEl.style.color = forceSlideToggle ? 'var(--orange)' : 'var(--yellow)';
+  labelEl.style.color = forceSlideToggle ? 'var(--yellow)' : 'var(--yellow)';
 });
 
 // "<Station> Departures", shrunk to fit on one line if the name is long
