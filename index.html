@@ -124,7 +124,10 @@
     font-weight: 700; color: var(--yellow);
     white-space: nowrap;
     justify-self: end;
-    margin-right: calc(var(--u) * 3.5);
+    margin-right: calc(var(--u) * 3.75);
+  }
+  .plat-num {
+    font-size: calc(var(--u) * 6.125);
   }
 
   /* The strip belongs to the row (it fades/slides down with the service).
@@ -132,7 +135,7 @@
   .pill-wrap {
     position: relative;
     height: calc(var(--u) * 5.5);
-    margin-top: calc(var(--u) * 0.7);
+    margin-top: calc(var(--u) * 0.8);
     overflow: hidden; /* Mask vertical transitions inside pill frame */
   }
   .pill-strip {
@@ -175,7 +178,7 @@
   /* Horizontal slide-in when page loads */
   #rows .pill-inner-wrap {
     transform: translateX(calc(var(--u) * 29));
-    transition: transform var(--pill-slide) cubic-bezier(0.5, 0, 0, 1);
+    transition: transform var(--pill-slide) cubic-bezier(0.5, 0, 0.2, 1);
   }
   #rows.pills-in .pill-inner-wrap { transform: translateX(0); }
 
@@ -261,8 +264,8 @@
 
 <script>
 /* ════════════════════════════════════════════════
-   Settings – tweak the transition feel here
-   ════════════════════════════════════════════════ */
+    Settings – tweak the transition feel here
+    ════════════════════════════════════════════════ */
 const CONFIG = {
   accessToken: 'e48245fd-c8d4-46b5-87ef-60e71665e6b6',
   defaultStation: 'CAR',
@@ -284,8 +287,8 @@ document.documentElement.style.setProperty('--fade-in', CONFIG.fadeInMs + 'ms');
 document.documentElement.style.setProperty('--pill-slide', CONFIG.pillSlideMs + 'ms');
 
 /* ════════════════════════════════════════════════
-   Helpers and state
-   ════════════════════════════════════════════════ */
+    Helpers and state
+    ════════════════════════════════════════════════ */
 const $ = id => document.getElementById(id);
 const boardEl = $('board'), rowsEl = $('rows'), measureEl = $('measure'), nrccPageEl = $('nrcc-page');
 const labelEl = $('page-label'), dotsEl = $('dots'), footerEl = document.querySelector('footer');
@@ -377,8 +380,8 @@ function cleanHtml(htmlStr) {
 }
 
 /* ════════════════════════════════════════════════
-   Clock (fixed-width digits so it never jitters)
-   ════════════════════════════════════════════════ */
+    Clock (fixed-width digits so it never jitters)
+    ════════════════════════════════════════════════ */
 const clockEl = $('clock');
 const clockSpans = '00:00:00'.split('').map(ch => {
   const s = el('span', ch === ':' ? 'c' : 'd', ch);
@@ -397,8 +400,8 @@ setInterval(tickClock, 250);
 tickClock();
 
 /* ════════════════════════════════════════════════
-   Rows
-   ════════════════════════════════════════════════ */
+    Rows
+    ════════════════════════════════════════════════ */
 function secondaryLines(s) {
   const lines = [];
   const op = s.operator || '';
@@ -447,7 +450,14 @@ function updateDynamic(row, s, animatePillChange = true) {
   const strip = wrap.querySelector('.pill-strip');
   const id = row.dataset.id;
 
-  plat.textContent = s.isBus ? 'Bus' : (s.platform ? `Plat ${s.platform}` : 'Plat -');
+  plat.replaceChildren();
+  if (s.isBus) {
+    plat.textContent = 'Bus';
+  } else if (s.platform) {
+    plat.append('Plat ', el('span', 'plat-num', s.platform));
+  } else {
+    plat.append('Plat ', el('span', 'plat-num', '-'));
+  }
   plat.classList.toggle('blink', (platformFlashUntil.get(id) || 0) > Date.now());
 
   const etd = s.etd || 'On time';
@@ -492,8 +502,8 @@ function updateDynamic(row, s, animatePillChange = true) {
 }
 
 /* ════════════════════════════════════════════════
-   Pagination
-   ════════════════════════════════════════════════ */
+    Pagination
+    ════════════════════════════════════════════════ */
 function layoutSignature() {
   const ids = latestIds.filter(id => knownMap.has(id));
   return Math.round(rowsEl.clientHeight) + '#' +
@@ -663,8 +673,8 @@ setInterval(() => {
 }, 250);
 
 /* ════════════════════════════════════════════════
-   Applying new data
-   ════════════════════════════════════════════════ */
+    Applying new data
+    ════════════════════════════════════════════════ */
 function inPlaceUpdate(animate = false) {
   if (pages[currentPage] !== 'nrcc') {
     rowsEl.querySelectorAll('.row').forEach(r => updateDynamic(r, knownMap.get(r.dataset.id), animate));
@@ -687,8 +697,8 @@ window.addEventListener('resize', () => {
 });
 
 /* ════════════════════════════════════════════════
-   Fault screen
-   ════════════════════════════════════════════════ */
+    Fault screen
+    ════════════════════════════════════════════════ */
 function setFault(on) {
   if (on === faultMode) return;
   faultMode = on;
@@ -702,15 +712,15 @@ function setFault(on) {
 }
 
 /* ════════════════════════════════════════════════
-   Fetching
-   ════════════════════════════════════════════════ */
+    Fetching
+    ════════════════════════════════════════════════ */
 async function fetchDepartures() {
   const gen = fetchGen;
   try {
     const res = await fetch(`https://huxley2.azurewebsites.net/departures/${stationCode}/50?accessToken=${CONFIG.accessToken}`);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (gen !== fetchGen) return;   // station changed while waiting
+    if (gen !== fetchGen) return;    // station changed while waiting
 
     document.title = `${data.locationName || stationCode} Departures`;
     setTitle(data.locationName || stationCode);
@@ -774,8 +784,8 @@ setInterval(() => {
 }, 250);
 
 /* ════════════════════════════════════════════════
-   Change station (click the title)
-   ════════════════════════════════════════════════ */
+    Change station (click the title)
+    ════════════════════════════════════════════════ */
 $('title').addEventListener('click', () => {
   const code = prompt('Enter a station code (e.g. EUS, LST, GTW):', stationCode);
   if (!code) return;
