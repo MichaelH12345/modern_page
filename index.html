@@ -21,22 +21,20 @@
     font-weight: 700; font-style: normal; font-display: swap;
   }
 
-  /*
-    Everything is sized in --u, where 100 u = the height of a 16:9 screen.
-    On a 1920x1080 display 1 u = 10.8 px. The board scales to any screen.
-  */
   :root {
     --u: min(1vh, 0.5625vw);
+    --cols: 1;
+    --bezel: 0px;
     --bg: #0e0e0f;
     --yellow: #ffe500;
     --orange: #ff6a14;
     --red: #e3262e;
-    --orange-dark: #d4500c;   /* strip on delayed / expected-time pills */
-    --red-dark: #b4161e;      /* strip on cancelled pills */
+    --orange-dark: #d4500c;
+    --red-dark: #b4161e;
     --white: #f5f5f5;
     --dot-off: #8e8f95;
     --line: #5c5d64;
-    --safe: 25px;             /* safe zone around the whole page */
+    --safe: 25px;
     --pill-slide: 700ms;
     --fade-out: 300ms;
     --fade-in: 450ms;
@@ -49,20 +47,31 @@
   #board {
     position: fixed; inset: 0;
     background: var(--bg);
-    padding: 0 var(--safe);   /* sides; top and bottom are handled by the header and footer heights */
     display: flex; flex-direction: column;
     overflow: hidden;
+  }
+
+  /* Blanks out the gap between panels in the main area while allowing header/footer horizontal lines to extend across */
+  .bezel {
+    position: absolute;
+    top: calc(var(--u) * 12);
+    bottom: calc(var(--u) * 9);
+    left: calc(var(--k) * ((100% - (var(--cols) - 1) * var(--bezel)) / var(--cols)) + (var(--k) - 1) * var(--bezel));
+    width: var(--bezel);
+    background: var(--bg);
+    z-index: 50;
+    pointer-events: none;
   }
 
   /* ───────── Header ───────── */
   header {
     flex: none;
     height: calc(var(--u) * 12);
-    margin-left: calc(var(--safe) * -1);
-    margin-right: calc(var(--safe) * -1);
     padding: 0 var(--safe);
     display: flex; align-items: center; justify-content: space-between;
     border-bottom: calc(var(--u) * 0.25) solid var(--line);
+    position: relative;
+    z-index: 60;
   }
   #title {
     font-size: calc(var(--u) * 7);
@@ -71,6 +80,7 @@
     color: #fff;
     cursor: pointer;
     flex: 1; min-width: 0;
+    max-width: calc((100vw - (var(--cols) - 1) * var(--bezel)) / var(--cols) - 2 * var(--safe));
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     padding-right: calc(var(--u) * 3);
     transition: opacity var(--fade-out) ease-in;
@@ -90,8 +100,16 @@
 
   /* ───────── Rows & Main Views ───────── */
   main { flex: 1; min-height: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; }
-  #rows { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+
+  #rows {
+    flex: 1; min-height: 0; overflow: hidden; position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: var(--bezel);
+  }
   #rows.out { opacity: 0; transition: opacity var(--fade-out) ease-in; }
+  .col { margin: 0 var(--safe); overflow: hidden; min-height: 0; }
 
   .row {
     display: grid;
@@ -101,7 +119,7 @@
   }
   .row.fade-in, .notice-item.fade-in { animation: rowIn var(--fade-in) cubic-bezier(0.22, 1, 0.36, 1) both; }
   @keyframes rowIn {
-    from { opacity: 0; transform: translateY(calc(var(--u) * -2.3)); }   /* 4.6 u = 50px on a 1080p screen */
+    from { opacity: 0; transform: translateY(calc(var(--u) * -2.3)); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
@@ -128,20 +146,14 @@
     justify-self: end;
     margin-right: calc(var(--u) * 3.75);
   }
-  .plat-num {
-    font-size: calc(var(--u) * 6.125);
-  }
-  .plat-letter {
-    font-size: calc(var(--u) * 5.8);
-  }
+  .plat-num { font-size: calc(var(--u) * 6.125); }
+  .plat-letter { font-size: calc(var(--u) * 5.8); }
 
-  /* The strip belongs to the row (it fades/slides down with the service).
-     The pill container crops out vertical transitions. */
   .pill-wrap {
     position: relative;
     height: calc(var(--u) * 5.5);
     margin-top: calc(var(--u) * 0.8);
-    overflow: hidden; /* Mask vertical transitions inside pill frame */
+    overflow: hidden;
   }
   .pill-strip {
     position: absolute; top: 0; right: 0; bottom: 0;
@@ -150,7 +162,6 @@
     transition: background-color 500ms ease;
   }
 
-  /* Inner wrapper handling page horizontal slide in */
   .pill-inner-wrap {
     position: absolute; inset: 0;
     margin-right: calc(var(--u) * 1.1);
@@ -167,7 +178,6 @@
     transition: transform 500ms cubic-bezier(0.75, 0, 0.5, 1);
   }
 
-  /* Pill Themes */
   .pill.ontime         { background: #f2f2f2; color: #000000; }
   .pill.exp            { background: var(--orange); color: #2a1606; font-weight: 700; }
   .pill.cancelled      { background: var(--red); color: #fff; font-weight: 700; }
@@ -176,11 +186,9 @@
   .pill-strip.exp       { background: var(--orange-dark); }
   .pill-strip.cancelled { background: var(--red-dark); }
 
-  /* Vertical slide-in states for status updates */
   .pill.slide-in-start { transform: translateY(100%); }
   .pill.slide-in-active { transform: translateY(0%); }
 
-  /* Horizontal slide-in when page loads */
   #rows .pill-inner-wrap {
     transform: translateX(calc(var(--u) * 29));
     transition: transform var(--pill-slide) cubic-bezier(0.6, 0, 0.15, 1);
@@ -195,11 +203,11 @@
   footer {
     flex: none;
     height: calc(var(--u) * 9);
-    margin-left: calc(var(--safe) * -1);
-    margin-right: calc(var(--safe) * -1);
     padding: 0 var(--safe);
     border-top: calc(var(--u) * 0.25) solid var(--line);
     display: flex; align-items: center; justify-content: space-between;
+    position: relative;
+    z-index: 60;
   }
   #page-label { 
     font-size: calc(var(--u) * 4); 
@@ -213,16 +221,18 @@
   .dot {
     width: calc(var(--u) * 3); height: calc(var(--u) * 3);
     border-radius: 50%; background: var(--dot-off);
-    transition: background-color 0.4s ease; /* Smooth fade transition for dot color */
+    transition: background-color 0.4s ease;
   }
   .dot.on { background: var(--yellow); }
   footer.single #dots { visibility: hidden; }
 
-  /* ───────── Fault screen & NRCC Screen ───────── */
-  #fault, #nrcc-page {
+  /* ───────── Information page ───────── */
+  #nrcc-page {
     display: none;
     flex: 1;
-    padding: calc(var(--u) * 2) calc(var(--u) * 8) 0;
+    padding: calc(var(--u) * 2) var(--safe) 0;
+    column-count: var(--cols);
+    column-gap: calc(var(--bezel) + 2 * var(--safe));
     text-align: center;
     font-size: calc(var(--u) * 4.6);
     line-height: 1.4;
@@ -233,14 +243,32 @@
   #nrcc-page.out { opacity: 0; }
   .notice-item {
     margin-bottom: calc(var(--u) * 4);
+    padding: 0 calc(var(--u) * 8);
     white-space: pre-wrap;
+    break-inside: avoid;
   }
 
-  #board.fault #fault { display: block; }
-  #board.fault main, #board.fault footer { visibility: hidden; }
+  /* ───────── Fault screen ───────── */
+  #fault {
+    display: none;
+    flex: 1;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    column-gap: var(--bezel);
+    text-align: center;
+    font-size: calc(var(--u) * 4.6);
+    line-height: 1.4;
+    color: var(--white);
+  }
+  .fault-panel { margin: 0 var(--safe); padding-top: calc(var(--u) * 2); min-width: 0; }
 
-  /* Off-screen measuring area used for pagination */
-  #measure { position: absolute; left: var(--safe); right: var(--safe); top: 0; visibility: hidden; pointer-events: none; }
+  #board.fault #fault { display: grid; }
+  #board.fault main, #board.fault footer { display: none; }
+
+  #measure {
+    position: absolute; top: 0; left: var(--safe);
+    width: calc((100% - (var(--cols) - 1) * var(--bezel)) / var(--cols) - 2 * var(--safe));
+    visibility: hidden; pointer-events: none;
+  }
 </style>
 </head>
 <body>
@@ -260,44 +288,41 @@
     <div id="dots"></div>
   </footer>
 
-  <div id="fault">
-    <div class="notice-item fade-in" style="animation-delay: 0ms;">We're working to fix a fault with this board.</div>
-    <div class="notice-item fade-in" style="animation-delay: 175ms;">For live train information speak to station staff, use station help points</div>
-    <div class="notice-item fade-in" style="animation-delay: 350ms;">or check the National Rail app.</div>
-  </div>
+  <div id="fault"></div>
 
   <div id="measure"></div>
 </div>
 
 <script>
-/* ════════════════════════════════════════════════
-    Settings – tweak the transition feel here
-    ════════════════════════════════════════════════ */
 const CONFIG = {
   accessToken: 'e48245fd-c8d4-46b5-87ef-60e71665e6b6',
   defaultStation: 'CAR',
-  pageSeconds: 10,          // page changes when the clock seconds are a multiple of this
-  fetchSecondMod: 5,        // data is fetched when (seconds % 10) === this (5, 15, 25, 35, 45, 55)
+  pageSeconds: 10,
+  fetchSecondMod: 5,
   maxPages: 3,
-  fadeOutMs: 300,           // whole page fades out together
-  fadeInMs: 900,            // each row slide-down + fade-in duration
-  staggerMs: 125,           // delay between each row appearing, top to bottom
-  faultAfterFailures: 3,    // consecutive failed fetches before the fault screen shows
+  fadeOutMs: 300,
+  fadeInMs: 900,
+  staggerMs: 125,
+  faultAfterFailures: 3,
   platformFlashMs: 5 * 60 * 1000,
-  pillDelayMs: -500,    // pause after the last row has faded in before the pills slid
-  pillSlideMs: 750,     // pill slide-in duration (ease out)
-  pillStaggerMs: 0          // set above 0 to make the pills slide in one after another
+  pillDelayMs: -500,
+  pillSlideMs: 750,
+  pillStaggerMs: 0,
+  bezelGapPx: 36
 };
 
 document.documentElement.style.setProperty('--fade-out', CONFIG.fadeOutMs + 'ms');
 document.documentElement.style.setProperty('--fade-in', CONFIG.fadeInMs + 'ms');
 document.documentElement.style.setProperty('--pill-slide', CONFIG.pillSlideMs + 'ms');
 
-/* ════════════════════════════════════════════════
-    Helpers and state
-    ════════════════════════════════════════════════ */
+const FAULT_LINES = [
+  "We're working to fix a fault with this board.",
+  'For live train information speak to station staff, use station help points',
+  'or check the National Rail app.'
+];
+
 const $ = id => document.getElementById(id);
-const boardEl = $('board'), rowsEl = $('rows'), measureEl = $('measure'), nrccPageEl = $('nrcc-page');
+const boardEl = $('board'), rowsEl = $('rows'), measureEl = $('measure'), nrccPageEl = $('nrcc-page'), faultEl = $('fault');
 const labelEl = $('page-label'), dotsEl = $('dots'), footerEl = document.querySelector('footer');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -310,15 +335,13 @@ function el(tag, cls, text) {
 function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
-// Toggle state for forcing slide animation on every fetch (now ON by default)
 let forceSlideToggle = true;
 labelEl.style.color = 'var(--yellow)';
 labelEl.addEventListener('click', () => {
   forceSlideToggle = !forceSlideToggle;
-  labelEl.style.color = forceSlideToggle ? 'var(--yellow)' : 'var(--yellow)';
+  labelEl.style.color = 'var(--yellow)';
 });
 
-// "<Station> Departures", shrunk to fit on one line if the name is long
 const titleEl = $('title');
 let currentStationName = '';
 
@@ -339,19 +362,20 @@ function setTitle(name) {
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
 
-// Loads the station saved in localStorage or falls back to default
 let stationCode = safeGet('stationCode') || CONFIG.defaultStation;
 
-const knownMap = new Map();     // id -> latest known service object
-let latestIds = [];             // ids in the order of the latest fetch
-let pages = [];                 // array of arrays of ids (or 'nrcc' string)
-let nrccMessagesList = [];      // store parsed NRCC messages
+const knownMap = new Map();
+let latestIds = [];
+let pages = [];
+let nrccMessagesList = [];
 let currentPage = 0;
-let displayedSig = null;        // signature of the layout currently paginated
+let displayedSig = null;
 let transitioning = false;
 let faultMode = false;
 let failures = 0;
 let fetchGen = 0;
+let cols = 1;
+let uPx = 0;
 const onTimeStreaks = new Map();
 const platformFlashUntil = new Map();
 
@@ -366,7 +390,6 @@ function is21SecondsPastSTD(std) {
   return Date.now() - t >= 21000;
 }
 
-// Format the time text into spans to adjust kerning on 2nd and 3rd characters
 function formatTimeEl(stdStr) {
   const container = el('div', 'time');
   const chars = (stdStr || '').split('');
@@ -379,16 +402,49 @@ function formatTimeEl(stdStr) {
   return container;
 }
 
-// Clean HTML tags and entities from NRCC messages to display plain text
 function cleanHtml(htmlStr) {
   const temp = document.createElement('div');
   temp.innerHTML = htmlStr;
   return temp.textContent || temp.innerText || '';
 }
 
-/* ════════════════════════════════════════════════
-    Clock (fixed-width digits so it never jitters)
-    ════════════════════════════════════════════════ */
+function applyLayout() {
+  const W = window.innerWidth, H = window.innerHeight;
+  const newCols = Math.max(1, Math.floor((W / H) / (16 / 9) + 0.25));
+  const gap = newCols > 1 ? CONFIG.bezelGapPx * H / 1080 : 0;
+  const panelW = (W - gap * (newCols - 1)) / newCols;
+  uPx = Math.min(H, panelW * 0.5625) / 100;
+
+  const root = document.documentElement.style;
+  root.setProperty('--u', uPx + 'px');
+  root.setProperty('--cols', newCols);
+  root.setProperty('--bezel', gap + 'px');
+
+  if (newCols !== cols || !boardEl.querySelector('.bezel') && newCols > 1) {
+    cols = newCols;
+    boardEl.querySelectorAll('.bezel').forEach(b => b.remove());
+    for (let k = 1; k < cols; k++) {
+      const b = el('div', 'bezel');
+      b.style.setProperty('--k', k);
+      boardEl.append(b);
+    }
+    if (faultMode) buildFault();
+  }
+}
+
+function buildFault() {
+  faultEl.replaceChildren();
+  for (let c = 0; c < cols; c++) {
+    const panel = el('div', 'fault-panel');
+    FAULT_LINES.forEach((t, i) => {
+      const d = el('div', 'notice-item fade-in', t);
+      d.style.animationDelay = (i * 175) + 'ms';
+      panel.append(d);
+    });
+    faultEl.append(panel);
+  }
+}
+
 const clockEl = $('clock');
 const clockSpans = '00:00:00'.split('').map(ch => {
   const s = el('span', ch === ':' ? 'c' : 'd', ch);
@@ -406,9 +462,6 @@ function tickClock() {
 setInterval(tickClock, 250);
 tickClock();
 
-/* ════════════════════════════════════════════════
-    Rows
-    ════════════════════════════════════════════════ */
 function secondaryLines(s) {
   const lines = [];
   const op = s.operator || '';
@@ -448,7 +501,6 @@ function buildRow(s) {
   return row;
 }
 
-// Updates parts that change (new pill slides in from below over the old one, and old pill is deleted 0.25s after animation finishes)
 function updateDynamic(row, s, animatePillChange = true) {
   if (!s) return;
   const plat = row.querySelector('.plat');
@@ -479,7 +531,7 @@ function updateDynamic(row, s, animatePillChange = true) {
   let cls = 'ontime', text = etd;
   if (etd === 'Cancelled') cls = 'cancelled';
   else if (isTime(etd)) { cls = 'exp'; text = `Exp ${etd}`; }
-  else if (etd !== 'On time' && etd !== 'Arrived') cls = 'exp';    // e.g. "Delayed"
+  else if (etd !== 'On time' && etd !== 'Arrived') cls = 'exp';
 
   strip.className = 'pill-strip ' + cls;
 
@@ -496,7 +548,6 @@ function updateDynamic(row, s, animatePillChange = true) {
       const newPill = el('div', `pill ${cls} slide-in-start`, text);
       innerWrap.append(newPill);
 
-      // Force layout reflow so browser registers starting position
       void newPill.offsetWidth;
 
       newPill.classList.remove('slide-in-start');
@@ -506,7 +557,6 @@ function updateDynamic(row, s, animatePillChange = true) {
         newPill.classList.remove('slide-in-active');
       }, 500);
 
-      // Delete the old pill 0.25s after the new one has finished its in-animation (500ms + 250ms = 750ms)
       setTimeout(() => {
         if (oldPill && oldPill.parentNode) {
           oldPill.remove();
@@ -516,12 +566,9 @@ function updateDynamic(row, s, animatePillChange = true) {
   }
 }
 
-/* ════════════════════════════════════════════════
-    Pagination
-    ════════════════════════════════════════════════ */
 function layoutSignature() {
   const ids = latestIds.filter(id => knownMap.has(id));
-  return Math.round(rowsEl.clientHeight) + '#' +
+  return Math.round(rowsEl.clientHeight) + '@' + cols + ':' + Math.round(uPx * 100) + '#' +
     ids.map(id => id + '|' + secondaryLines(knownMap.get(id)).join('/')).join(';') +
     '#nrcc:' + nrccMessagesList.length;
 }
@@ -530,21 +577,30 @@ function paginate(ids) {
   measureEl.replaceChildren();
   const avail = rowsEl.clientHeight - 1;
   const result = [];
-  let page = [], used = 0;
+  let page = [], col = [], used = 0;
+
+  const closeColumn = () => {
+    page.push(col);
+    col = []; used = 0;
+    if (page.length >= cols) { result.push(page); page = []; }
+  };
 
   for (const id of ids) {
     const row = buildRow(knownMap.get(id));
     measureEl.append(row);
     const h = row.getBoundingClientRect().height;
-    if (page.length && used + h > avail) { result.push(page); page = []; used = 0; }
-    page.push(id);
+    if (col.length && used + h > avail) closeColumn();
+    col.push(id);
     used += h;
   }
+  if (col.length) closeColumn();
   if (page.length) result.push(page);
   measureEl.replaceChildren();
-  if (result.length > CONFIG.maxPages) result.length = CONFIG.maxPages;
+  
+  // On ultrawide screens (cols > 1), limit maximum service pages to 2
+  const allowedMaxPages = cols > 1 ? 2 : CONFIG.maxPages;
+  if (result.length > allowedMaxPages) result.length = allowedMaxPages;
 
-  // Append NRCC page if messages exist
   if (nrccMessagesList.length > 0) {
     result.push('nrcc');
   }
@@ -590,27 +646,31 @@ function renderPage(idx) {
     });
   } else {
     nrccPageEl.style.display = 'none';
-    rowsEl.style.display = 'block';
+    rowsEl.style.display = 'grid';
 
-    const ids = currentContent || [];
-    ids.forEach((id, i) => {
-      const row = buildRow(knownMap.get(id));
-      row.style.animationDelay = (i * CONFIG.staggerMs) + 'ms';
-      const innerWrap = row.querySelector('.pill-inner-wrap');
-      if (innerWrap) innerWrap.style.transitionDelay = (i * CONFIG.pillStaggerMs) + 'ms';
-      row.classList.add('fade-in');
-      rowsEl.append(row);
-    });
+    const columns = currentContent || [];
+    let n = 0;
+    for (let c = 0; c < cols; c++) {
+      const colEl = el('div', 'col');
+      (columns[c] || []).forEach(id => {
+        const row = buildRow(knownMap.get(id));
+        row.style.animationDelay = (n * CONFIG.staggerMs) + 'ms';
+        const innerWrap = row.querySelector('.pill-inner-wrap');
+        if (innerWrap) innerWrap.style.transitionDelay = (n * CONFIG.pillStaggerMs) + 'ms';
+        row.classList.add('fade-in');
+        colEl.append(row);
+        n++;
+      });
+      rowsEl.append(colEl);
+    }
 
-    // Once the last service has faded in, slide all the status pills in
-    const wait = Math.max(ids.length - 1, 0) * CONFIG.staggerMs + CONFIG.fadeInMs + CONFIG.pillDelayMs;
-    pillTimer = setTimeout(() => rowsEl.classList.add('pills-in'), wait);
+    const wait = Math.max(n - 1, 0) * CONFIG.staggerMs + CONFIG.fadeInMs + CONFIG.pillDelayMs;
+    pillTimer = setTimeout(() => rowsEl.classList.add('pills-in'), Math.max(wait, 0));
   }
 
   updatePager(idx);
 }
 
-/* Page transition logic */
 async function swapTo(idx) {
   if (transitioning) return;
   transitioning = true;
@@ -621,12 +681,10 @@ async function swapTo(idx) {
   const isEnteringNRCC = currentContent !== 'nrcc' && targetContent === 'nrcc';
   const titleFades = isLeavingNRCC || isEnteringNRCC;
 
-  // 1. Fetch data if returning to page 0
   if (idx === 0) {
     await fetchDepartures();
   }
 
-  // 2. Fade out current view
   rowsEl.classList.add('out');
   if (currentContent === 'nrcc') {
     nrccPageEl.classList.add('out');
@@ -637,7 +695,6 @@ async function swapTo(idx) {
 
   await sleep(CONFIG.fadeOutMs);
 
-  // 3. Switch title text while hidden
   if (titleFades) {
     if (isEnteringNRCC) {
       titleEl.textContent = 'Information';
@@ -647,29 +704,25 @@ async function swapTo(idx) {
     fitTitle();
   }
 
-  // 4. Force DOM layout refresh before measuring pagination for Page 1
   if (idx === 0) {
-    rowsEl.style.display = 'block';
+    rowsEl.style.display = 'grid';
     nrccPageEl.style.display = 'none';
     rebuild();
   }
 
   currentPage = Math.min(idx, Math.max(pages.length - 1, 0));
 
-  // Ensure containers are cleared before appearing
   rowsEl.replaceChildren();
   nrccPageEl.replaceChildren();
   rowsEl.classList.remove('pills-in');
   clearTimeout(pillTimer);
 
-  // 5. Fade back in the container/header first
   rowsEl.classList.remove('out');
   nrccPageEl.classList.remove('out');
   if (titleFades) {
     titleEl.classList.remove('out');
   }
 
-  // 6. Wait 0.25s after the new page has appeared before adding/animating services or notices
   await sleep(250);
   renderPage(currentPage);
 
@@ -687,9 +740,6 @@ setInterval(() => {
   }
 }, 250);
 
-/* ════════════════════════════════════════════════
-    Applying new data
-    ════════════════════════════════════════════════ */
 function inPlaceUpdate(animate = false) {
   if (pages[currentPage] !== 'nrcc') {
     rowsEl.querySelectorAll('.row').forEach(r => updateDynamic(r, knownMap.get(r.dataset.id), animate));
@@ -699,7 +749,7 @@ function inPlaceUpdate(animate = false) {
 function reconcile(animate = false) {
   if (faultMode) return;
   if (layoutSignature() !== displayedSig && currentPage === 0 && !transitioning) {
-    swapTo(0);        // re-paginates after the fade out
+    swapTo(0);
     return;
   }
   inPlaceUpdate(animate);
@@ -707,13 +757,11 @@ function reconcile(animate = false) {
 
 let resizeTimer;
 window.addEventListener('resize', () => {
+  applyLayout();
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => { fitTitle(); reconcile(false); }, 300);
 });
 
-/* ════════════════════════════════════════════════
-    Fault screen
-    ════════════════════════════════════════════════ */
 function setFault(on) {
   if (on === faultMode) return;
   faultMode = on;
@@ -723,19 +771,17 @@ function setFault(on) {
     nrccPageEl.style.display = 'none';
     pages = []; currentPage = 0; displayedSig = null;
     updatePager(0);
+    buildFault();
   }
 }
 
-/* ════════════════════════════════════════════════
-    Fetching
-    ════════════════════════════════════════════════ */
 async function fetchDepartures() {
   const gen = fetchGen;
   try {
     const res = await fetch(`https://huxley2.azurewebsites.net/departures/${stationCode}/50?accessToken=${CONFIG.accessToken}`);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (gen !== fetchGen) return;    // station changed while waiting
+    if (gen !== fetchGen) return;
 
     document.title = `${data.locationName || stationCode} Departures`;
     setTitle(data.locationName || stationCode);
@@ -758,7 +804,6 @@ async function fetchDepartures() {
     shown.forEach(s => {
       const id = getServiceId(s);
 
-      // "Arrived" after a long run of "On time" past the departure time
       if ((s.etd || 'On time') === 'On time') {
         const count = (onTimeStreaks.get(id) || 0) + 1;
         onTimeStreaks.set(id, count);
@@ -767,7 +812,6 @@ async function fetchDepartures() {
         onTimeStreaks.delete(id);
       }
 
-      // Flash the platform when it changes or is first announced
       const prev = knownMap.get(id);
       if (prev && s.platform && prev.platform !== s.platform) {
         platformFlashUntil.set(id, Date.now() + CONFIG.platformFlashMs);
@@ -778,7 +822,7 @@ async function fetchDepartures() {
 
     failures = 0;
     if (faultMode) setFault(false);
-    reconcile(true); // Animate pills only when data is fetched at scheduled intervals
+    reconcile(true);
   } catch (err) {
     console.error(err);
     if (gen !== fetchGen) return;
@@ -787,26 +831,22 @@ async function fetchDepartures() {
   }
 }
 
+applyLayout();
 fetchDepartures();
 let lastFetchTick = -1;
 setInterval(() => {
   const s = new Date().getSeconds();
-  // Triggers precisely when seconds match 5, 15, 25, 35, 45, 55 (fetchSecondMod = 5)
   if (s % 10 === CONFIG.fetchSecondMod && s !== lastFetchTick) {
     lastFetchTick = s;
     fetchDepartures();
   }
 }, 250);
 
-/* ════════════════════════════════════════════════
-    Change station (click the title)
-    ════════════════════════════════════════════════ */
 $('title').addEventListener('click', () => {
   const code = prompt('Enter a station code (e.g. EUS, LST, GTW):', stationCode);
   if (!code) return;
   stationCode = code.trim().toUpperCase();
   
-  // Saves the station choice so it persists across page reloads
   safeSet('stationCode', stationCode);
 
   fetchGen++;
@@ -819,7 +859,6 @@ $('title').addEventListener('click', () => {
   nrccPageEl.style.display = 'none';
   setFault(false);
   updatePager(0);
-  setTitle('');
   fetchDepartures();
 });
 </script>
