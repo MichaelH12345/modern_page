@@ -36,7 +36,7 @@
     --white: #f5f5f5;
     --dot-off: #8e8f95;
     --line: #5c5d64;
-    --safe: 25px;             /* safe zone around the whole page */
+    --safe: 25px;              /* safe zone around the whole page */
     --pill-slide: 700ms;
     --fade-out: 300ms;
     --fade-in: 450ms;
@@ -99,7 +99,7 @@
   }
   .row.fade-in, .notice-item.fade-in { animation: rowIn var(--fade-in) cubic-bezier(0.22, 1, 0.36, 1) both; }
   @keyframes rowIn {
-    from { opacity: 0; transform: translateY(calc(var(--u) * -4.6)); }   /* 4.6 u = 50px on a 1080p screen */
+    from { opacity: 0; transform: translateY(calc(var(--u) * -2.3)); }   /* 4.6 u = 50px on a 1080p screen */
     to   { opacity: 1; transform: translateY(0); }
   }
 
@@ -107,7 +107,10 @@
     font-size: calc(var(--u) * 5.8);
     line-height: calc(var(--u) * 6.8);
   }
-  .time { font-weight: 700; color: var(--yellow); font-variant-numeric: tabular-nums; }
+  .time { font-weight: 700; color: var(--yellow); font-variant-numeric: tabular-nums; display: inline-flex; }
+  .time .t-char-2 { letter-spacing: calc(var(--u) * -0.6); }
+  .time .t-char-3 { letter-spacing: calc(var(--u) * -0.6); }
+
   .dest-name { font-weight: 700; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sub {
     font-size: calc(var(--u) * 4.4);
@@ -158,17 +161,16 @@
 
   /* Pill Themes */
   .pill.ontime        { background: #f2f2f2; color: #000000; }
-  .pill.exp          { background: var(--orange); color: #2a1606; font-weight: 700; }
-  .pill.cancelled    { background: var(--red); color: #fff; font-weight: 700; }
+  .pill.exp           { background: var(--orange); color: #2a1606; font-weight: 700; }
+  .pill.cancelled     { background: var(--red); color: #fff; font-weight: 700; }
 
   .pill-strip.ontime    { background: var(--yellow); }
   .pill-strip.exp       { background: var(--orange-dark); }
   .pill-strip.cancelled { background: var(--red-dark); }
 
-  /* Vertical slide-up states for status updates */
+  /* Vertical slide-in states for status updates */
   .pill.slide-in-start { transform: translateY(100%); }
   .pill.slide-in-active { transform: translateY(0%); }
-  .pill.slide-out-active { transform: translateY(-100%); }
 
   /* Horizontal slide-in when page loads */
   #rows .pill-inner-wrap {
@@ -265,15 +267,15 @@ const CONFIG = {
   accessToken: 'e48245fd-c8d4-46b5-87ef-60e71665e6b6',
   defaultStation: 'CAR',
   pageSeconds: 10,          // page changes when the clock seconds are a multiple of this
-  fetchSecondMod: 5,        // data is fetched when (seconds % 10) === this (e.g. 5, 15, 25, 35, etc.)
+  fetchSecondMod: 5,        // data is fetched when (seconds % 10) === this (5, 15, 25, 35, 45, 55)
   maxPages: 3,
   fadeOutMs: 300,           // whole page fades out together
   fadeInMs: 900,            // each row slide-down + fade-in duration
   staggerMs: 175,           // delay between each row appearing, top to bottom
   faultAfterFailures: 3,    // consecutive failed fetches before the fault screen shows
   platformFlashMs: 5 * 60 * 1000,
-  pillDelayMs: -500,    // pause after the last row has faded in before the pills slide
-  pillSlideMs: 1000,     // pill slide-in duration (ease out)
+  pillDelayMs: -600,    // pause after the last row has faded in before the pills slide
+  pillSlideMs: 750,     // pill slide-in duration (ease out)
   pillStaggerMs: 0          // set above 0 to make the pills slide in one after another
 };
 
@@ -354,6 +356,19 @@ function is21SecondsPastSTD(std) {
   return Date.now() - t >= 21000;
 }
 
+// Format the time text into spans to adjust kerning on 2nd and 3rd characters
+function formatTimeEl(stdStr) {
+  const container = el('div', 'time');
+  const chars = (stdStr || '').split('');
+  chars.forEach((ch, idx) => {
+    let cls = '';
+    if (idx === 1) cls = 't-char-2';
+    else if (idx === 2) cls = 't-char-3';
+    container.append(el('span', cls, ch));
+  });
+  return container;
+}
+
 // Clean HTML tags and entities from NRCC messages to display plain text
 function cleanHtml(htmlStr) {
   const temp = document.createElement('div');
@@ -418,12 +433,12 @@ function buildRow(s) {
   
   wrap.append(innerWrap, el('div', 'pill-strip'));
 
-  row.append(el('div', 'time', s.std || ''), dest, el('div', 'plat'), wrap);
+  row.append(formatTimeEl(s.std || ''), dest, el('div', 'plat'), wrap);
   updateDynamic(row, s, false);
   return row;
 }
 
-// Updates parts that change (swaps status pill vertically on status change or when toggle is active)
+// Updates parts that change (new pill slides in from below over the old one, and old pill is deleted 0.25s after animation finishes)
 function updateDynamic(row, s, animatePillChange = true) {
   if (!s) return;
   const plat = row.querySelector('.plat');
@@ -452,22 +467,26 @@ function updateDynamic(row, s, animatePillChange = true) {
       const newPill = el('div', `pill ${cls}`, text);
       innerWrap.append(newPill);
     } else {
-      // Smooth vertical slide update inside the pill frame
       const oldPill = currentPill;
       const newPill = el('div', `pill ${cls} slide-in-start`, text);
       innerWrap.append(newPill);
 
-      // Force layout reflow so browser registers starting positions
+      // Force layout reflow so browser registers starting position
       void newPill.offsetWidth;
 
-      oldPill.classList.add('slide-out-active');
       newPill.classList.remove('slide-in-start');
       newPill.classList.add('slide-in-active');
 
       setTimeout(() => {
-        if (oldPill.parentNode) oldPill.remove();
         newPill.classList.remove('slide-in-active');
       }, 500);
+
+      // Delete the old pill 0.25s after the new one has finished its in-animation (500ms + 250ms = 750ms)
+      setTimeout(() => {
+        if (oldPill && oldPill.parentNode) {
+          oldPill.remove();
+        }
+      }, 750);
     }
   }
 }
@@ -646,25 +665,25 @@ setInterval(() => {
 /* ════════════════════════════════════════════════
    Applying new data
    ════════════════════════════════════════════════ */
-function inPlaceUpdate() {
+function inPlaceUpdate(animate = false) {
   if (pages[currentPage] !== 'nrcc') {
-    rowsEl.querySelectorAll('.row').forEach(r => updateDynamic(r, knownMap.get(r.dataset.id), true));
+    rowsEl.querySelectorAll('.row').forEach(r => updateDynamic(r, knownMap.get(r.dataset.id), animate));
   }
 }
 
-function reconcile() {
+function reconcile(animate = false) {
   if (faultMode) return;
   if (layoutSignature() !== displayedSig && currentPage === 0 && !transitioning) {
     swapTo(0);        // re-paginates after the fade out
     return;
   }
-  inPlaceUpdate();
+  inPlaceUpdate(animate);
 }
 
 let resizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { fitTitle(); reconcile(); }, 300);
+  resizeTimer = setTimeout(() => { fitTitle(); reconcile(false); }, 300);
 });
 
 /* ════════════════════════════════════════════════
@@ -734,7 +753,7 @@ async function fetchDepartures() {
 
     failures = 0;
     if (faultMode) setFault(false);
-    reconcile();
+    reconcile(true); // Animate pills only when data is fetched at scheduled intervals
   } catch (err) {
     console.error(err);
     if (gen !== fetchGen) return;
@@ -747,7 +766,7 @@ fetchDepartures();
 let lastFetchTick = -1;
 setInterval(() => {
   const s = new Date().getSeconds();
-  // Triggers whenever the seconds end in 5 (5, 15, 25, 35, 45, 55)
+  // Triggers precisely when seconds match 5, 15, 25, 35, 45, 55 (fetchSecondMod = 5)
   if (s % 10 === CONFIG.fetchSecondMod && s !== lastFetchTick) {
     lastFetchTick = s;
     fetchDepartures();
