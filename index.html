@@ -58,7 +58,9 @@
   header {
     flex: none;
     height: calc(var(--u) * 12);
-    padding: 0;
+    margin-left: calc(var(--safe) * -1);
+    margin-right: calc(var(--safe) * -1);
+    padding: 0 var(--safe);
     display: flex; align-items: center; justify-content: space-between;
     border-bottom: calc(var(--u) * 0.25) solid var(--line);
   }
@@ -162,13 +164,13 @@
     font-size: calc(var(--u) * 4);
     font-weight: 500;
     white-space: nowrap;
-    transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 500ms cubic-bezier(0.75, 0, 0.5, 1);
   }
 
   /* Pill Themes */
-  .pill.ontime        { background: #f2f2f2; color: #000000; }
-  .pill.exp           { background: var(--orange); color: #2a1606; font-weight: 700; }
-  .pill.cancelled     { background: var(--red); color: #fff; font-weight: 700; }
+  .pill.ontime         { background: #f2f2f2; color: #000000; }
+  .pill.exp            { background: var(--orange); color: #2a1606; font-weight: 700; }
+  .pill.cancelled      { background: var(--red); color: #fff; font-weight: 700; }
 
   .pill-strip.ontime    { background: var(--yellow); }
   .pill-strip.exp       { background: var(--orange-dark); }
@@ -181,7 +183,7 @@
   /* Horizontal slide-in when page loads */
   #rows .pill-inner-wrap {
     transform: translateX(calc(var(--u) * 29));
-    transition: transform var(--pill-slide) cubic-bezier(0.5, 0, 0.2, 1);
+    transition: transform var(--pill-slide) cubic-bezier(0.6, 0, 0.15, 1);
   }
   #rows.pills-in .pill-inner-wrap { transform: translateX(0); }
 
@@ -193,8 +195,10 @@
   footer {
     flex: none;
     height: calc(var(--u) * 9);
+    margin-left: calc(var(--safe) * -1);
+    margin-right: calc(var(--safe) * -1);
+    padding: 0 var(--safe);
     border-top: calc(var(--u) * 0.25) solid var(--line);
-    padding: 0;
     display: flex; align-items: center; justify-content: space-between;
   }
   #page-label { 
@@ -277,10 +281,10 @@ const CONFIG = {
   maxPages: 3,
   fadeOutMs: 300,           // whole page fades out together
   fadeInMs: 900,            // each row slide-down + fade-in duration
-  staggerMs: 175,           // delay between each row appearing, top to bottom
+  staggerMs: 125,           // delay between each row appearing, top to bottom
   faultAfterFailures: 3,    // consecutive failed fetches before the fault screen shows
   platformFlashMs: 5 * 60 * 1000,
-  pillDelayMs: -600,    // pause after the last row has faded in before the pills slide
+  pillDelayMs: -500,    // pause after the last row has faded in before the pills slid
   pillSlideMs: 750,     // pill slide-in duration (ease out)
   pillStaggerMs: 0          // set above 0 to make the pills slide in one after another
 };
@@ -636,7 +640,7 @@ async function swapTo(idx) {
   // 3. Switch title text while hidden
   if (titleFades) {
     if (isEnteringNRCC) {
-      titleEl.textContent = 'Travel Information';
+      titleEl.textContent = 'Information';
     } else {
       titleEl.textContent = currentStationName ? `${currentStationName} Departures` : 'Departures';
     }
