@@ -36,7 +36,7 @@
     --white: #f5f5f5;
     --dot-off: #8e8f95;
     --line: #5c5d64;
-    --safe: 25px;              /* safe zone around the whole page */
+    --safe: 25px;             /* safe zone around the whole page */
     --pill-slide: 700ms;
     --fade-out: 300ms;
     --fade-in: 450ms;
@@ -128,6 +128,9 @@
   }
   .plat-num {
     font-size: calc(var(--u) * 6.125);
+  }
+  .plat-letter {
+    font-size: calc(var(--u) * 5.8);
   }
 
   /* The strip belongs to the row (it fades/slides down with the service).
@@ -454,7 +457,15 @@ function updateDynamic(row, s, animatePillChange = true) {
   if (s.isBus) {
     plat.textContent = 'Bus';
   } else if (s.platform) {
-    plat.append('Plat ', el('span', 'plat-num', s.platform));
+    plat.append('Plat ');
+    const parts = String(s.platform).match(/(\d+|\D+)/g) || [s.platform];
+    parts.forEach(part => {
+      if (/^\d+$/.test(part)) {
+        plat.append(el('span', 'plat-num', part));
+      } else {
+        plat.append(el('span', 'plat-letter', part));
+      }
+    });
   } else {
     plat.append('Plat ', el('span', 'plat-num', '-'));
   }
@@ -552,7 +563,7 @@ function updatePager(idx) {
   if (dotsEl.children.length !== n) {
     dotsEl.replaceChildren(...Array.from({ length: n }, () => el('span', 'dot')));
   }
-  [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i === idx));
+   [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i === idx));
 }
 
 let pillTimer;
