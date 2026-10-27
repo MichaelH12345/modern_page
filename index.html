@@ -85,7 +85,24 @@
     padding-right: calc(var(--u) * 3);
     transition: opacity var(--fade-out) ease-in;
   }
-  #title.out { opacity: 0; }
+  #title.out, #right-title.out { opacity: 0; }
+
+  #right-title {
+    display: none;
+    position: absolute;
+    /* start of the 2nd panel: one panel width + one bezel gap, then the safe zone */
+    left: calc(((100vw - (var(--cols) - 1) * var(--bezel)) / var(--cols)) + var(--bezel) + var(--safe));
+    /* stop before the clock (about 27u wide) plus a small gap, and respect the safe zone */
+    right: calc(var(--safe) + var(--u) * 32);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: calc(var(--u) * 7);
+    line-height: 1.2;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: opacity var(--fade-out) ease-in;
+  }
 
   #clock {
     font-size: calc(var(--u) * 6.3);
@@ -201,6 +218,7 @@
 
   /* ───────── Footer ───────── */
   footer {
+    order: 2;
     flex: none;
     height: calc(var(--u) * 9);
     padding: 0 var(--safe);
@@ -227,16 +245,18 @@
   footer.single #dots { visibility: hidden; }
 
   /* ───────── Information page ───────── */
+  #nrcc-page, .split-notices-container {
+    text-align: center;
+    font-size: calc(var(--u) * 4.6);
+    line-height: 1.4;
+    color: var(--white);
+  }
   #nrcc-page {
     display: none;
     flex: 1;
     padding: calc(var(--u) * 2) var(--safe) 0;
     column-count: var(--cols);
     column-gap: calc(var(--bezel) + 2 * var(--safe));
-    text-align: center;
-    font-size: calc(var(--u) * 4.6);
-    line-height: 1.4;
-    color: var(--white);
     overflow-y: auto;
     transition: opacity var(--fade-out) ease-in;
   }
@@ -248,10 +268,12 @@
     break-inside: avoid;
   }
 
-  /* ───────── Fault screen ───────── */
+  /* ───────── Fault / no-services screen ───────── */
   #fault {
     display: none;
+    order: 1;
     flex: 1;
+    min-height: 0;
     grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
     column-gap: var(--bezel);
     text-align: center;
@@ -259,10 +281,11 @@
     line-height: 1.4;
     color: var(--white);
   }
-  .fault-panel { margin: 0 var(--safe); padding-top: calc(var(--u) * 2); min-width: 0; }
+  .fault-panel { margin: 0 var(--safe); padding-top: calc(var(--u) * 2); min-width: 0; min-height: 0; overflow-y: auto; }
 
   #board.fault #fault { display: grid; }
-  #board.fault main, #board.fault footer { display: none; }
+  #board.fault main { display: none; }
+  #board.fault.hard footer { display: none; }
 
   #measure {
     position: absolute; top: 0; left: var(--safe);
@@ -275,6 +298,7 @@
 <div id="board">
   <header>
     <div id="title" title="Click to change station">Departures</div>
+    <div id="right-title">Station Information</div>
     <div id="clock" aria-label="Current time"></div>
   </header>
 
@@ -320,10 +344,14 @@ const FAULT_LINES = [
   'For live train information speak to station staff, use station help points',
   'or check the National Rail app.'
 ];
+const NO_SERVICES_LINE = 'Please check timetable for services.';
+let noServicesMode = false;
+let noServicesSig = '';
 
 const $ = id => document.getElementById(id);
 const boardEl = $('board'), rowsEl = $('rows'), measureEl = $('measure'), nrccPageEl = $('nrcc-page'), faultEl = $('fault');
 const labelEl = $('page-label'), dotsEl = $('dots'), footerEl = document.querySelector('footer');
+const titleEl = $('title'), rightTitleEl = $('right-title');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function el(tag, cls, text) {
@@ -342,7 +370,6 @@ labelEl.addEventListener('click', () => {
   labelEl.style.color = 'var(--yellow)';
 });
 
-const titleEl = $('title');
 let currentStationName = '';
 
 function fitTitle() {
@@ -355,10 +382,19 @@ function fitTitle() {
 }
 function setTitle(name) {
   currentStationName = name || '';
-  if (pages[currentPage] !== 'nrcc') {
+  const noSvc = noServicesMode && !faultMode;
+  const currentContent = pages[currentPage];
+  if (!noSvc && currentContent === 'nrcc') {
+    titleEl.textContent = 'Station Information';
+    rightTitleEl.style.display = 'none';
+  } else {
     titleEl.textContent = name ? `${name} Departures` : 'Departures';
-    fitTitle();
+    const showRight = noSvc
+      ? (cols > 1 && nrccMessagesList.length > 0)
+      : (currentContent && currentContent.type === 'split' && nrccMessagesList.length > 0);
+    rightTitleEl.style.display = showRight ? 'block' : 'none';
   }
+  fitTitle();
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
 
@@ -428,15 +464,23 @@ function applyLayout() {
       b.style.setProperty('--k', k);
       boardEl.append(b);
     }
-    if (faultMode) buildFault();
+    if (faultMode || noServicesMode) { buildFault(); setTitle(currentStationName); }
   }
 }
 
 function buildFault() {
   faultEl.replaceChildren();
+  const noSvc = noServicesMode && !faultMode;
+  const notices = nrccMessagesList.map(m => cleanHtml(m.value));
   for (let c = 0; c < cols; c++) {
     const panel = el('div', 'fault-panel');
-    FAULT_LINES.forEach((t, i) => {
+    let lines = FAULT_LINES;
+    if (noSvc) {
+      if (c === 1) lines = notices.length ? notices : [NO_SERVICES_LINE];
+      else if (cols === 1) lines = [NO_SERVICES_LINE, ...notices];
+      else lines = [NO_SERVICES_LINE];
+    }
+    lines.forEach((t, i) => {
       const d = el('div', 'notice-item fade-in', t);
       d.style.animationDelay = (i * 175) + 'ms';
       panel.append(d);
@@ -601,7 +645,12 @@ function paginate(ids) {
   const allowedMaxPages = cols > 1 ? 2 : CONFIG.maxPages;
   if (result.length > allowedMaxPages) result.length = allowedMaxPages;
 
-  if (nrccMessagesList.length > 0) {
+  // Split view (right panel = notices, or the timetable message if there are none)
+  // only when every service fits in the first column.
+  // Otherwise page as normal and show the notices on their own "Station Information" page.
+  if (cols > 1 && result.length === 1 && result[0].length === 1) {
+    result[0] = { type: 'split', columns: result[0] };
+  } else if (nrccMessagesList.length > 0) {
     result.push('nrcc');
   }
 
@@ -634,6 +683,7 @@ function renderPage(idx) {
   nrccPageEl.replaceChildren();
 
   const currentContent = pages[idx];
+  setTitle(currentStationName);
 
   if (currentContent === 'nrcc') {
     rowsEl.style.display = 'none';
@@ -648,19 +698,37 @@ function renderPage(idx) {
     nrccPageEl.style.display = 'none';
     rowsEl.style.display = 'grid';
 
-    const columns = currentContent || [];
+    const isSplit = currentContent && currentContent.type === 'split';
+    const columns = isSplit ? currentContent.columns : (currentContent || []);
     let n = 0;
+
     for (let c = 0; c < cols; c++) {
       const colEl = el('div', 'col');
-      (columns[c] || []).forEach(id => {
-        const row = buildRow(knownMap.get(id));
-        row.style.animationDelay = (n * CONFIG.staggerMs) + 'ms';
-        const innerWrap = row.querySelector('.pill-inner-wrap');
-        if (innerWrap) innerWrap.style.transitionDelay = (n * CONFIG.pillStaggerMs) + 'ms';
-        row.classList.add('fade-in');
-        colEl.append(row);
-        n++;
-      });
+      if (isSplit && c === 1) {
+        colEl.style.overflowY = 'auto';
+        colEl.style.paddingTop = 'calc(var(--u) * 2)';
+
+        const noticesContainer = el('div', 'split-notices-container');
+        nrccMessagesList.forEach((m, i) => {
+          const noticeDiv = el('div', 'notice-item fade-in', cleanHtml(m.value));
+          noticeDiv.style.animationDelay = (i * CONFIG.staggerMs) + 'ms';
+          noticesContainer.append(noticeDiv);
+        });
+        if (!nrccMessagesList.length) {
+          noticesContainer.append(el('div', 'notice-item fade-in', NO_SERVICES_LINE));
+        }
+        colEl.append(noticesContainer);
+      } else {
+        (columns[c] || []).forEach(id => {
+          const row = buildRow(knownMap.get(id));
+          row.style.animationDelay = (n * CONFIG.staggerMs) + 'ms';
+          const innerWrap = row.querySelector('.pill-inner-wrap');
+          if (innerWrap) innerWrap.style.transitionDelay = (n * CONFIG.pillStaggerMs) + 'ms';
+          row.classList.add('fade-in');
+          colEl.append(row);
+          n++;
+        });
+      }
       rowsEl.append(colEl);
     }
 
@@ -685,24 +753,18 @@ async function swapTo(idx) {
     await fetchDepartures();
   }
 
+  if (faultMode || noServicesMode) { transitioning = false; return; }
+
   rowsEl.classList.add('out');
   if (currentContent === 'nrcc') {
     nrccPageEl.classList.add('out');
   }
   if (titleFades) {
     titleEl.classList.add('out');
+    rightTitleEl.classList.add('out');
   }
 
   await sleep(CONFIG.fadeOutMs);
-
-  if (titleFades) {
-    if (isEnteringNRCC) {
-      titleEl.textContent = 'Station Information';
-    } else {
-      titleEl.textContent = currentStationName ? `${currentStationName} Departures` : 'Departures';
-    }
-    fitTitle();
-  }
 
   if (idx === 0) {
     rowsEl.style.display = 'grid';
@@ -711,6 +773,9 @@ async function swapTo(idx) {
   }
 
   currentPage = Math.min(idx, Math.max(pages.length - 1, 0));
+  // Swap the header text now, while the titles are still faded out (opacity 0),
+  // so the old text never fades back in before being replaced.
+  setTitle(currentStationName);
 
   rowsEl.replaceChildren();
   nrccPageEl.replaceChildren();
@@ -721,6 +786,7 @@ async function swapTo(idx) {
   nrccPageEl.classList.remove('out');
   if (titleFades) {
     titleEl.classList.remove('out');
+    rightTitleEl.classList.remove('out');
   }
 
   await sleep(250);
@@ -734,7 +800,7 @@ setInterval(() => {
   const s = new Date().getSeconds();
   if (s % CONFIG.pageSeconds === 0 && s !== lastPageTick) {
     lastPageTick = s;
-    if (!faultMode && !transitioning && pages.length > 1) {
+    if (!faultMode && !noServicesMode && !transitioning && pages.length > 1) {
       swapTo((currentPage + 1) % pages.length);
     }
   }
@@ -747,7 +813,7 @@ function inPlaceUpdate(animate = false) {
 }
 
 function reconcile(animate = false) {
-  if (faultMode) return;
+  if (faultMode || noServicesMode) return;
   if (layoutSignature() !== displayedSig && currentPage === 0 && !transitioning) {
     swapTo(0);
     return;
@@ -765,14 +831,38 @@ window.addEventListener('resize', () => {
 function setFault(on) {
   if (on === faultMode) return;
   faultMode = on;
-  boardEl.classList.toggle('fault', on);
+  boardEl.classList.toggle('fault', on || noServicesMode);
+  boardEl.classList.toggle('hard', on);
   if (on) {
     rowsEl.replaceChildren();
     nrccPageEl.style.display = 'none';
     pages = []; currentPage = 0; displayedSig = null;
     updatePager(0);
     buildFault();
+  } else if (noServicesMode) {
+    buildFault();
   }
+  setTitle(currentStationName);
+}
+
+function setNoServices(on) {
+  const sig = on ? nrccMessagesList.map(m => m.value).join('|') : '';
+  if (on === noServicesMode && sig === noServicesSig) return;
+  noServicesMode = on;
+  noServicesSig = sig;
+  if (faultMode) return;
+  boardEl.classList.toggle('fault', on);
+  if (on) {
+    rowsEl.replaceChildren();
+    nrccPageEl.replaceChildren();
+    nrccPageEl.style.display = 'none';
+    pages = []; currentPage = 0; displayedSig = null;
+    updatePager(0);
+    buildFault();
+  } else {
+    displayedSig = null; // force a normal rebuild
+  }
+  setTitle(currentStationName);
 }
 
 async function fetchDepartures() {
@@ -822,6 +912,7 @@ async function fetchDepartures() {
 
     failures = 0;
     if (faultMode) setFault(false);
+    setNoServices(shown.length === 0);
     reconcile(true);
   } catch (err) {
     console.error(err);
@@ -857,6 +948,8 @@ $('title').addEventListener('click', () => {
   rowsEl.classList.remove('out');
   rowsEl.replaceChildren();
   nrccPageEl.style.display = 'none';
+  noServicesMode = false; noServicesSig = '';
+  if (!faultMode) boardEl.classList.remove('fault');
   setFault(false);
   updatePager(0);
   fetchDepartures();
