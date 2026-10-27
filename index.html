@@ -175,7 +175,7 @@
     font-size: calc(var(--u) * 4);
     font-weight: 500;
     white-space: nowrap;
-    transition: transform 500ms cubic-bezier(0.75, 0, 0.5, 1);
+    transition: transform 500ms cubic-bezier(0.5, 0, 0.1, 1);
   }
 
   .pill.ontime         { background: #f2f2f2; color: #000000; }
@@ -191,7 +191,7 @@
 
   #rows .pill-inner-wrap {
     transform: translateX(calc(var(--u) * 29));
-    transition: transform var(--pill-slide) cubic-bezier(0.6, 0, 0.15, 1);
+    transition: transform var(--pill-slide) cubic-bezier(0.5, 0, 0.1, 1);
   }
   #rows.pills-in .pill-inner-wrap { transform: translateX(0); }
 
@@ -305,7 +305,7 @@ const CONFIG = {
   staggerMs: 125,
   faultAfterFailures: 3,
   platformFlashMs: 5 * 60 * 1000,
-  pillDelayMs: -500,
+  pillDelayMs: -650,
   pillSlideMs: 750,
   pillStaggerMs: 0,
   bezelGapPx: 36
@@ -697,7 +697,7 @@ async function swapTo(idx) {
 
   if (titleFades) {
     if (isEnteringNRCC) {
-      titleEl.textContent = 'Information';
+      titleEl.textContent = 'Station Information';
     } else {
       titleEl.textContent = currentStationName ? `${currentStationName} Departures` : 'Departures';
     }
