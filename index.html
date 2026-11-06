@@ -74,21 +74,38 @@
     position: relative;
     z-index: 60;
   }
+  
+  .title-container {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    max-width: calc((100vw - (var(--cols) - 1) * var(--bezel)) / var(--cols) - 2 * var(--safe));
+    transition: opacity var(--fade-out) ease-in;
+  }
+  .title-container.out, #right-title-container.out { opacity: 0; }
+
+    .header-svg {
+    /* Match the exact font size / cap height of the text */
+    height: calc(var(--u) * 8.5);
+    width: auto;
+    fill: #fff;
+    flex-shrink: 0;
+    display: block;
+  }
+
   #title {
     font-size: calc(var(--u) * 7);
     line-height: 1.2;
     font-weight: 700;
     color: #fff;
     cursor: pointer;
-    flex: 1; min-width: 0;
-    max-width: calc((100vw - (var(--cols) - 1) * var(--bezel)) / var(--cols) - 2 * var(--safe));
+    min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    padding-right: calc(var(--u) * 3);
-    transition: opacity var(--fade-out) ease-in;
+    margin-left: 10px;
   }
-  #title.out, #right-title.out { opacity: 0; }
 
-  #right-title {
+  #right-title-container {
     display: none;
     position: absolute;
     /* start of the 2nd panel: one panel width + one bezel gap, then the safe zone */
@@ -97,12 +114,17 @@
     right: calc(var(--safe) + var(--u) * 32);
     top: 50%;
     transform: translateY(-50%);
+    align-items: center;
+    transition: opacity var(--fade-out) ease-in;
+  }
+
+  #right-title {
     font-size: calc(var(--u) * 7);
     line-height: 1.2;
     font-weight: 700;
     color: #fff;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    transition: opacity var(--fade-out) ease-in;
+    margin-left: 25px;
   }
 
   #clock {
@@ -159,8 +181,6 @@
   }
   .dest-name + .sub { margin-top: calc(var(--u) * 0 ); }
 
-  /* Coach diagram: an "empty" text line that holds the train drawing.
-     It is sized in em, so it scales with the text size (1.1 em tall). */
   .sub.coach-line {
     display: flex; align-items: center;
     margin-top: calc(var(--u) * 0.);
@@ -327,8 +347,16 @@
 <body>
 <div id="board">
   <header>
-    <div id="title" title="Click to change station">Departures</div>
-    <div id="right-title">Station Information</div>
+    <div id="title-container" class="title-container">
+      <svg class="header-svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><path d="M 14 3 C 12.742188 3 11.847656 3.890625 11.40625 5 L 10 5 C 7.25 5 5 7.25 5 10 L 5 21 C 5 23.425781 6.449219 25.523438 8.53125 26.46875 L 6 29 L 8.34375 29 L 10.375 26.96875 C 10.574219 26.988281 10.792969 27 11 27 L 21 27 C 21.207031 27 21.425781 26.988281 21.625 26.96875 L 23.65625 29 L 26 29 L 23.46875 26.46875 C 25.550781 25.523438 27 23.425781 27 21 L 27 10 C 27 7.25 24.75 5 22 5 L 20.59375 5 C 20.152344 3.890625 19.257813 3 18 3 Z M 14 5 L 18 5 C 18.566406 5 19 5.433594 19 6 L 19 7 L 22 7 C 23.320313 7 24.4375 7.828125 24.84375 9 L 7.15625 9 C 7.5625 7.828125 8.679688 7 10 7 L 13 7 L 13 6 C 13 5.433594 13.433594 5 14 5 Z M 7 11 L 25 11 L 25 16 L 7 16 Z M 7 18 L 25 18 L 25 21 C 25 23.21875 23.21875 25 21 25 L 11 25 C 8.78125 25 7 23.21875 7 21 Z M 16 19 C 14.894531 19 14 19.894531 14 21 C 14 22.105469 14.894531 23 16 23 C 17.105469 23 18 22.105469 18 21 C 18 19.894531 17.105469 19 16 19 Z"></path></svg>
+      <div id="title" title="Click to change station">Departures</div>
+    </div>
+    
+    <div id="right-title-container">
+      <svg class="header-svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><path d="M 16 3 C 8.832031 3 3 8.832031 3 16 C 3 23.167969 8.832031 29 16 29 C 23.167969 29 29 23.167969 29 16 C 29 8.832031 23.167969 3 16 3 Z M 16 5 C 22.085938 5 27 9.914063 27 16 C 27 22.085938 22.085938 27 16 27 C 9.914063 27 5 22.085938 5 16 C 5 9.914063 9.914063 5 16 5 Z M 15 10 L 15 12 L 17 12 L 17 10 Z M 15 14 L 15 22 L 17 22 L 17 14 Z"></path></svg>
+      <div id="right-title">Station Information</div>
+    </div>
+    
     <div id="clock" aria-label="Current time"></div>
   </header>
 
@@ -363,8 +391,8 @@ const CONFIG = {
   pillSlideMs: 750,
   pillStaggerMs: 0,
   bezelGapPx: 36,
-  showCoachCount: true,     // show "N coaches" after the diagram
-  coachDiagramEm: 1.1       // height of the coach diagram, in multiples of the line's text size
+  showCoachCount: true,
+  coachDiagramEm: 1.1
 };
 
 document.documentElement.style.setProperty('--fade-out', CONFIG.fadeOutMs + 'ms');
@@ -383,7 +411,8 @@ let noServicesSig = '';
 const $ = id => document.getElementById(id);
 const boardEl = $('board'), rowsEl = $('rows'), measureEl = $('measure'), nrccPageEl = $('nrcc-page'), faultEl = $('fault');
 const labelEl = $('page-label'), dotsEl = $('dots'), footerEl = document.querySelector('footer');
-const titleEl = $('title'), rightTitleEl = $('right-title');
+let titleEl = $('title'), rightTitleEl = $('right-title');
+const titleContainerEl = $('title-container'), rightTitleContainerEl = $('right-title-container');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function el(tag, cls, text) {
@@ -412,20 +441,55 @@ function fitTitle() {
     titleEl.style.fontSize = fs + 'px';
   }
 }
+
+function changeStationHandler() {
+  const code = prompt('Enter a station code (e.g. EUS, LST, GTW):', stationCode);
+  if (!code) return;
+  stationCode = code.trim().toUpperCase();
+  
+  safeSet('stationCode', stationCode);
+
+  fetchGen++;
+  knownMap.clear(); latestIds = []; pages = []; nrccMessagesList = [];
+  onTimeStreaks.clear(); platformFlashUntil.clear();
+  currentPage = 0; displayedSig = null; failures = 0;
+  transitioning = false;
+  rowsEl.classList.remove('out');
+  rowsEl.replaceChildren();
+  nrccPageEl.style.display = 'none';
+  noServicesMode = false; noServicesSig = '';
+  if (!faultMode) boardEl.classList.remove('fault');
+  setFault(false);
+  updatePager(0);
+  fetchDepartures();
+}
+
 function setTitle(name) {
   currentStationName = name || '';
   const noSvc = noServicesMode && !faultMode;
   const currentContent = pages[currentPage];
+  
   if (!noSvc && currentContent === 'nrcc') {
-    titleEl.textContent = 'Station Information';
-    rightTitleEl.style.display = 'none';
+    titleContainerEl.innerHTML = `
+      <svg class="header-svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><path d="M 16 3 C 8.832031 3 3 8.832031 3 16 C 3 23.167969 8.832031 29 16 29 C 23.167969 29 29 23.167969 29 16 C 29 8.832031 23.167969 3 16 3 Z M 16 5 C 22.085938 5 27 9.914063 27 16 C 27 22.085938 22.085938 27 16 27 C 9.914063 27 5 22.085938 5 16 C 5 9.914063 9.914063 5 16 5 Z M 15 10 L 15 12 L 17 12 L 17 10 Z M 15 14 L 15 22 L 17 22 L 17 14 Z"></path></svg>
+      <div id="title" title="Station Information">Station Information</div>
+    `;
+    rightTitleContainerEl.style.display = 'none';
   } else {
-    titleEl.textContent = name ? `${name} Departures` : 'Departures';
+    titleContainerEl.innerHTML = `
+      <svg class="header-svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><path d="M 14 3 C 12.742188 3 11.847656 3.890625 11.40625 5 L 10 5 C 7.25 5 5 7.25 5 10 L 5 21 C 5 23.425781 6.449219 25.523438 8.53125 26.46875 L 6 29 L 8.34375 29 L 10.375 26.96875 C 10.574219 26.988281 10.792969 27 11 27 L 21 27 C 21.207031 27 21.425781 26.988281 21.625 26.96875 L 23.65625 29 L 26 29 L 23.46875 26.46875 C 25.550781 25.523438 27 23.425781 27 21 L 27 10 C 27 7.25 24.75 5 22 5 L 20.59375 5 C 20.152344 3.890625 19.257813 3 18 3 Z M 14 5 L 18 5 C 18.566406 5 19 5.433594 19 6 L 19 7 L 22 7 C 23.320313 7 24.4375 7.828125 24.84375 9 L 7.15625 9 C 7.5625 7.828125 8.679688 7 10 7 L 13 7 L 13 6 C 13 5.433594 13.433594 5 14 5 Z M 7 11 L 25 11 L 25 16 L 7 16 Z M 7 18 L 25 18 L 25 21 C 25 23.21875 23.21875 25 21 25 L 11 25 C 8.78125 25 7 23.21875 7 21 Z M 16 19 C 14.894531 19 14 19.894531 14 21 C 14 22.105469 14.894531 23 16 23 C 17.105469 23 18 22.105469 18 21 C 18 19.894531 17.105469 19 16 19 Z"></path></svg>
+      <div id="title" title="Click to change station">${name ? `${name} Departures` : 'Departures'}</div>
+    `;
+    
+    $('title').addEventListener('click', changeStationHandler);
+
     const showRight = noSvc
       ? (cols > 1 && nrccMessagesList.length > 0)
       : (currentContent && currentContent.type === 'split' && nrccMessagesList.length > 0);
-    rightTitleEl.style.display = showRight ? 'block' : 'none';
+    rightTitleContainerEl.style.display = showRight ? 'flex' : 'none';
   }
+  
+  titleEl = $('title');
   fitTitle();
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
@@ -538,11 +602,6 @@ function tickClock() {
 setInterval(tickClock, 250);
 tickClock();
 
-/* ════════════════════════════════════════════════
-    Service info lines
-    Each line is either a text string or { coaches: N },
-    which is drawn as a train diagram on an "empty" text line.
-    ════════════════════════════════════════════════ */
 function secondaryLines(s) {
   const lines = [];
   const op = s.operator || '';
@@ -558,35 +617,30 @@ function secondaryLines(s) {
   } else if (s.delayReason) {
     lines.push(s.delayReason.replace('This service has been delayed by', 'Service delayed due to') + '.');
   }
-  // Coach count goes last, as a diagram
   if (s.length && s.length !== 0) lines.push({ coaches: Number(s.length) });
   return lines;
 }
 
-// Text key used for the layout signature
 function lineKey(l) { return typeof l === 'string' ? l : 'coaches:' + l.coaches; }
 
-// Draws a nose followed by n coaches side by side. Where two pieces touch, each
-// carries a half-width line, so the pair looks as thick as the top and bottom lines.
 function buildCoachDiagram(n) {
   const NS = 'http://www.w3.org/2000/svg';
-  const ch = 11;          // height of the train
-  const cw = 8;           // width of each coach
-  const sw = 0.7;         // line width
-  const swV = sw / 2;     
-  const g = swV;          
-  const nose = 6;         // nose width set to 5
-  const noseFlat = 1;     // flat part of the nose's top edge
+  const ch = 11;
+  const cw = 8;
+  const sw = 0.7;
+ const swV = sw;     
+  const g = 0;          
+  const nose = 6;
+  const noseFlat = 1;
   const e = 0;            
-  const rx = 0.;         // corner radius for the last coach's right side
+  const rx = 0.;
 
-  const xEnd = nose + g + n * cw + (n - 1) * g;   
+  const xEnd = nose + g + n * cw + (n - 1) * g;    
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('class', 'coach-diagram');
   svg.setAttribute('viewBox', `0 0 ${xEnd} ${ch}`);
   svg.style.width = (CONFIG.coachDiagramEm * xEnd / ch) + 'em';
 
-  // Updated addPath helper to optionally accept rounding attributes
   const addPath = (d, width, isRounded = false) => {
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('d', d);
@@ -601,24 +655,19 @@ function buildCoachDiagram(n) {
   let full = '';    
   let half = '';    
 
-  // Nose: Passed `true` so the sharp bottom corner is automatically rounded
   addPath(`M${nose},${ch} H0 L${nose - noseFlat},0 H${nose}`, sw, true);
-  
-  // Nose rear edge
   half += `M${nose},${e} V${ch - e} `;
 
-  // Loop through all coaches *except* the last one
   for (let i = 0; i < n - 1; i++) {
     const x = nose + g + i * (cw + g);
     full += `M${x},0 H${x + cw} M${x},${ch} H${x + cw} `;     
-    half += `M${x},${e} V${ch - e} `;                         
-    half += `M${x + cw},${e} V${ch - e} `;     
+    half += `M${x},${e} V${ch - e} `;                       
+    half += `M${x + cw},${e} V${ch - e} `;      
   }
 
   if (full) addPath(full, sw);
   if (half) addPath(half, swV);
 
-  // Draw ONLY the final last coach with rounded right corners
   const lastX = nose + g + (n - 1) * (cw + g);
   const lastCoachPath = `
     M ${lastX},${ch} 
@@ -761,13 +810,9 @@ function paginate(ids) {
   if (page.length) result.push(page);
   measureEl.replaceChildren();
   
-  // On ultrawide screens (cols > 1), limit maximum service pages to 2
   const allowedMaxPages = cols > 1 ? 2 : CONFIG.maxPages;
   if (result.length > allowedMaxPages) result.length = allowedMaxPages;
 
-  // Split view (right panel = notices, or the timetable message if there are none)
-  // only when every service fits in the first column.
-  // Otherwise page as normal and show the notices on their own "Station Information" page.
   if (cols > 1 && result.length === 1 && result[0].length === 1) {
     result[0] = { type: 'split', columns: result[0] };
   } else if (nrccMessagesList.length > 0) {
@@ -880,8 +925,8 @@ async function swapTo(idx) {
     nrccPageEl.classList.add('out');
   }
   if (titleFades) {
-    titleEl.classList.add('out');
-    rightTitleEl.classList.add('out');
+    titleContainerEl.classList.add('out');
+    rightTitleContainerEl.classList.add('out');
   }
 
   await sleep(CONFIG.fadeOutMs);
@@ -893,8 +938,6 @@ async function swapTo(idx) {
   }
 
   currentPage = Math.min(idx, Math.max(pages.length - 1, 0));
-  // Swap the header text now, while the titles are still faded out (opacity 0),
-  // so the old text never fades back in before being replaced.
   setTitle(currentStationName);
 
   rowsEl.replaceChildren();
@@ -905,8 +948,8 @@ async function swapTo(idx) {
   rowsEl.classList.remove('out');
   nrccPageEl.classList.remove('out');
   if (titleFades) {
-    titleEl.classList.remove('out');
-    rightTitleEl.classList.remove('out');
+    titleContainerEl.classList.remove('out');
+    rightTitleContainerEl.classList.remove('out');
   }
 
   await sleep(250);
@@ -980,7 +1023,7 @@ function setNoServices(on) {
     updatePager(0);
     buildFault();
   } else {
-    displayedSig = null; // force a normal rebuild
+    displayedSig = null;
   }
   setTitle(currentStationName);
 }
@@ -1053,27 +1096,7 @@ setInterval(() => {
   }
 }, 250);
 
-$('title').addEventListener('click', () => {
-  const code = prompt('Enter a station code (e.g. EUS, LST, GTW):', stationCode);
-  if (!code) return;
-  stationCode = code.trim().toUpperCase();
-  
-  safeSet('stationCode', stationCode);
-
-  fetchGen++;
-  knownMap.clear(); latestIds = []; pages = []; nrccMessagesList = [];
-  onTimeStreaks.clear(); platformFlashUntil.clear();
-  currentPage = 0; displayedSig = null; failures = 0;
-  transitioning = false;
-  rowsEl.classList.remove('out');
-  rowsEl.replaceChildren();
-  nrccPageEl.style.display = 'none';
-  noServicesMode = false; noServicesSig = '';
-  if (!faultMode) boardEl.classList.remove('fault');
-  setFault(false);
-  updatePager(0);
-  fetchDepartures();
-});
+$('title').addEventListener('click', changeStationHandler);
 </script>
 </body>
 </html>
