@@ -163,7 +163,7 @@
      It is sized in em, so it scales with the text size (1.1 em tall). */
   .sub.coach-line {
     display: flex; align-items: center;
-    margin-top: calc(var(--u) * 0.8);
+    margin-top: calc(var(--u) * 0.);
   }
   .coach-diagram {
     display: block;
@@ -174,9 +174,10 @@
   }
   .coach-count {
     flex: none;
-    margin-left: 0.7em;
+    margin-left: 0.8em;
+    margin-top: 0.6em;
     font-size: 0.9em;
-    font-weight: 500;
+    font-weight: 300;
     color: var(--yellow);
     white-space: nowrap;
   }
@@ -570,48 +571,66 @@ function lineKey(l) { return typeof l === 'string' ? l : 'coaches:' + l.coaches;
 function buildCoachDiagram(n) {
   const NS = 'http://www.w3.org/2000/svg';
   const ch = 11;          // height of the train
-  const cw = 9;          // width of each coach
-  const sw = 0.7;         // line width of the outer edges
-  const swV = sw / 2;     // line width where two pieces touch
-  const g = swV;          // distance between touching lines
-  const nose = 7;         // <--- CHANGED: width of the nose piece is now 5
+  const cw = 8;           // width of each coach
+  const sw = 0.7;         // line width
+  const swV = sw / 2;     
+  const g = swV;          
+  const nose = 6;         // nose width set to 5
   const noseFlat = 1;     // flat part of the nose's top edge
-  const e = sw / 2;       // how far vertical lines run past the top/bottom lines
+  const e = 0;            
+  const rx = 0.;         // corner radius for the last coach's right side
 
-  const xEnd = nose + g + n * cw + (n - 1) * g;   // right-hand edge of the last coach
+  const xEnd = nose + g + n * cw + (n - 1) * g;   
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('class', 'coach-diagram');
   svg.setAttribute('viewBox', `0 0 ${xEnd} ${ch}`);
   svg.style.width = (CONFIG.coachDiagramEm * xEnd / ch) + 'em';
 
-  const addPath = (d, width) => {
+  // Updated addPath helper to optionally accept rounding attributes
+  const addPath = (d, width, isRounded = false) => {
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('d', d);
     path.setAttribute('stroke-width', width);
-    path.setAttribute('stroke-linejoin', 'round'); // <--- Added for rounded corners
-    path.setAttribute('stroke-linecap', 'round');  // <--- Added for smooth line caps
+    if (isRounded) {
+      path.setAttribute('stroke-linejoin', 'round');
+      path.setAttribute('stroke-linecap', 'round');
+    }
     svg.append(path);
   };
 
-  let full = '';    // full-width lines
-  let half = '';    // half-width lines (where pieces touch)
+  let full = '';    
+  let half = '';    
 
-  // Nose: bottom edge, slanted front and top edge as one continuous line
-  addPath(`M${nose},${ch} H0 L${nose - noseFlat},0 H${nose}`, sw);
-  // Nose rear edge (touches the first coach)
-  half += `M${nose},${-e} V${ch + e} `;
+  // Nose: Passed `true` so the sharp bottom corner is automatically rounded
+  addPath(`M${nose},${ch} H0 L${nose - noseFlat},0 H${nose}`, sw, true);
+  
+  // Nose rear edge
+  half += `M${nose},${e} V${ch - e} `;
 
-  for (let i = 0; i < n; i++) {
+  // Loop through all coaches *except* the last one
+  for (let i = 0; i < n - 1; i++) {
     const x = nose + g + i * (cw + g);
-    full += `M${x},0 H${x + cw} M${x},${ch} H${x + cw} `;     // top and bottom
-    half += `M${x},${-e} V${ch + e} `;                         // left edge
-    if (i < n - 1) half += `M${x + cw},${-e} V${ch + e} `;     // right edge
+    full += `M${x},0 H${x + cw} M${x},${ch} H${x + cw} `;     
+    half += `M${x},${e} V${ch - e} `;                         
+    half += `M${x + cw},${e} V${ch - e} `;     
   }
-  // Very last edge of the train is a normal full-width line
-  full += `M${xEnd},${-e} V${ch + e}`;
 
-  addPath(full, sw);
-  addPath(half, swV);
+  if (full) addPath(full, sw);
+  if (half) addPath(half, swV);
+
+  // Draw ONLY the final last coach with rounded right corners
+  const lastX = nose + g + (n - 1) * (cw + g);
+  const lastCoachPath = `
+    M ${lastX},${ch} 
+    V 0 
+    H ${lastX + cw - rx} 
+    A ${rx},${rx} 0 0 1 ${lastX + cw},${rx} 
+    V ${ch - rx} 
+    A ${rx},${rx} 0 0 1 ${lastX + cw - rx},${ch} 
+    H ${lastX}
+  `;
+  addPath(lastCoachPath, sw);
+
   return svg;
 }
 
