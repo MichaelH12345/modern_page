@@ -34,6 +34,7 @@
     --white: #f5f5f5;
     --dot-off: #8e8f95;
     --line: #5c5d64;
+    --coach-line: #e4f5f7;   /* outline colour of the coach diagram */
     --safe: 25px;
     --pill-slide: 700ms;
     --fade-out: 300ms;
@@ -157,6 +158,34 @@
     margin-top: calc(var(--u) * 0.4);
   }
   .dest-name + .sub { margin-top: calc(var(--u) * 0 ); }
+
+  /* Coach diagram: an "empty" text line that holds the train drawing.
+     It is sized in em, so it scales with the text size (1.1 em tall). */
+  .sub.coach-line {
+    display: flex; align-items: center;
+    margin-top: calc(var(--u) * 0.8);
+  }
+  .coach-diagram {
+    display: block;
+    flex: 0 1 auto;
+    min-width: 0;
+    height: auto;
+    overflow: visible;
+  }
+  .coach-count {
+    flex: none;
+    margin-left: 0.7em;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--yellow);
+    white-space: nowrap;
+  }
+  .coach-diagram path {
+    fill: none;
+    stroke: var(--coach-line);
+    stroke-linejoin: round;
+  }
+
   .plat {
     font-weight: 700; color: var(--yellow);
     white-space: nowrap;
@@ -332,7 +361,9 @@ const CONFIG = {
   pillDelayMs: -650,
   pillSlideMs: 750,
   pillStaggerMs: 0,
-  bezelGapPx: 36
+  bezelGapPx: 36,
+  showCoachCount: true,     // show "N coaches" after the diagram
+  coachDiagramEm: 1.1       // height of the coach diagram, in multiples of the line's text size
 };
 
 document.documentElement.style.setProperty('--fade-out', CONFIG.fadeOutMs + 'ms');
@@ -506,13 +537,17 @@ function tickClock() {
 setInterval(tickClock, 250);
 tickClock();
 
+/* ════════════════════════════════════════════════
+    Service info lines
+    Each line is either a text string or { coaches: N },
+    which is drawn as a train diagram on an "empty" text line.
+    ════════════════════════════════════════════════ */
 function secondaryLines(s) {
   const lines = [];
   const op = s.operator || '';
   if (s.isBus) lines.push('Rail replacement bus');
   const via = s.destination?.[0]?.via;
   if (via) lines.push(via);
-  if (s.length && s.length !== 0) lines.push(`This train has ${s.length} coaches.`);
   if (op === 'Avanti West Coast' && !s.isBus) lines.push('Avanti West Coast Pendolino');
   if (op === 'Heathrow Express') lines.push('Heathrow Express');
   if (op === 'London North Eastern Railway') lines.push('Reserve seats up to 5 minutes before departure at LNER.co.uk');
@@ -522,7 +557,62 @@ function secondaryLines(s) {
   } else if (s.delayReason) {
     lines.push(s.delayReason.replace('This service has been delayed by', 'Service delayed due to') + '.');
   }
+  // Coach count goes last, as a diagram
+  if (s.length && s.length !== 0) lines.push({ coaches: Number(s.length) });
   return lines;
+}
+
+// Text key used for the layout signature
+function lineKey(l) { return typeof l === 'string' ? l : 'coaches:' + l.coaches; }
+
+// Draws a nose followed by n coaches side by side. Where two pieces touch, each
+// carries a half-width line, so the pair looks as thick as the top and bottom lines.
+function buildCoachDiagram(n) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const ch = 11;          // height of the train
+  const cw = 9;          // width of each coach
+  const sw = 0.7;         // line width of the outer edges
+  const swV = sw / 2;     // line width where two pieces touch
+  const g = swV;          // distance between touching lines
+  const nose = 7;         // <--- CHANGED: width of the nose piece is now 5
+  const noseFlat = 1;     // flat part of the nose's top edge
+  const e = sw / 2;       // how far vertical lines run past the top/bottom lines
+
+  const xEnd = nose + g + n * cw + (n - 1) * g;   // right-hand edge of the last coach
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'coach-diagram');
+  svg.setAttribute('viewBox', `0 0 ${xEnd} ${ch}`);
+  svg.style.width = (CONFIG.coachDiagramEm * xEnd / ch) + 'em';
+
+  const addPath = (d, width) => {
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('stroke-width', width);
+    path.setAttribute('stroke-linejoin', 'round'); // <--- Added for rounded corners
+    path.setAttribute('stroke-linecap', 'round');  // <--- Added for smooth line caps
+    svg.append(path);
+  };
+
+  let full = '';    // full-width lines
+  let half = '';    // half-width lines (where pieces touch)
+
+  // Nose: bottom edge, slanted front and top edge as one continuous line
+  addPath(`M${nose},${ch} H0 L${nose - noseFlat},0 H${nose}`, sw);
+  // Nose rear edge (touches the first coach)
+  half += `M${nose},${-e} V${ch + e} `;
+
+  for (let i = 0; i < n; i++) {
+    const x = nose + g + i * (cw + g);
+    full += `M${x},0 H${x + cw} M${x},${ch} H${x + cw} `;     // top and bottom
+    half += `M${x},${-e} V${ch + e} `;                         // left edge
+    if (i < n - 1) half += `M${x + cw},${-e} V${ch + e} `;     // right edge
+  }
+  // Very last edge of the train is a normal full-width line
+  full += `M${xEnd},${-e} V${ch + e}`;
+
+  addPath(full, sw);
+  addPath(half, swV);
+  return svg;
 }
 
 function buildRow(s) {
@@ -531,7 +621,18 @@ function buildRow(s) {
 
   const dest = el('div', 'dest');
   dest.append(el('div', 'dest-name', s.destination?.[0]?.locationName || ''));
-  secondaryLines(s).forEach(t => dest.append(el('div', 'sub', t)));
+  secondaryLines(s).forEach(l => {
+    if (typeof l === 'string') {
+      dest.append(el('div', 'sub', l));
+    } else {
+      const line = el('div', 'sub coach-line');
+      line.append(buildCoachDiagram(l.coaches));
+      if (CONFIG.showCoachCount) {
+        line.append(el('span', 'coach-count', l.coaches === 1 ? '1 coach' : `${l.coaches} coaches`));
+      }
+      dest.append(line);
+    }
+  });
 
   const wrap = el('div', 'pill-wrap');
   const innerWrap = el('div', 'pill-inner-wrap');
@@ -613,7 +714,7 @@ function updateDynamic(row, s, animatePillChange = true) {
 function layoutSignature() {
   const ids = latestIds.filter(id => knownMap.has(id));
   return Math.round(rowsEl.clientHeight) + '@' + cols + ':' + Math.round(uPx * 100) + '#' +
-    ids.map(id => id + '|' + secondaryLines(knownMap.get(id)).join('/')).join(';') +
+    ids.map(id => id + '|' + secondaryLines(knownMap.get(id)).map(lineKey).join('/')).join(';') +
     '#nrcc:' + nrccMessagesList.length;
 }
 
